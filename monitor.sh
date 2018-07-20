@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# ----------- led support ----------------
+# ----------- trap related routines ----------------
 trap "onTerm" INT TERM ERR
 trap "onExit" EXIT
 
@@ -37,13 +37,15 @@ function onTerm {
 }
 
 function kill_process {
+    # Single arg which is the pid of job to be killed.
+    # Undefined, empty, or noJob arg means nothing will be killed.
     echo "killing ${1}"
     if [[ ${1:-noJob} != noJob ]] ; then
-        kill ${1} 
+        kill ${1} 2&>1 >/dev/null
     fi
 }
 
-# ----------- led support ----------------
+# ----------- led routines ----------------
 # ref: http://wiringpi.com/the-gpio-utility/
 gpio -g mode 10 output
 
@@ -60,6 +62,7 @@ function led_off {
 }
 
 function led_blink {
+    # Single arg which is speed of the blinking.
     kill_process ${ledPid:-noJob}
     case $1 in
         fast)  pause=0.125
@@ -87,7 +90,7 @@ function led_blink {
 # ----------- status checks ----------------
 function status {
     # Check there is a wifi connection
-    # An alternative is iwconfig 2>&1 | grep wlan0 | grep ESSID
+    # An alternative is iwconfig 2&>1 | grep wlan0 | grep ESSID
     wlanOk=$(nmcli | grep "wlan0: connected to" >/dev/null \
         && echo ok || echo error)
     if [[ $wlanOk != "ok" ]] ; then
@@ -112,7 +115,7 @@ function status {
         grep pong >/dev/null \
         && echo ok || echo error)
     if [[ $pingApiOk != "ok" ]] ; then
-        ./display.py "ip:${myIp}" "syncthing dead?"
+        ./display.py "${myIp}" "syncthing dead?"
         return 1
     fi
 
@@ -135,33 +138,122 @@ function status {
         uptime="$(($uptimeSecs / 86400)) days"
     fi
 
-    # Check cpu load
-    userCpu=$(top -b -n 1 -p 0 | grep Cpu | awk '{ print $2 }')
-    sysCpu=$(top -b -n 1 -p 0 | grep Cpu | awk '{ print $4 }')
-    totalCpu=$(echo $userCpu $sysCpu | awk '{ print $1 + $2 }')
+    # Check cpu load. 
+    syncCpu=$(curl -H "X-API-Key: GSwL53QQ96gZWJU5DpDTnqzJTzi2bn4K"  \
+        http://127.0.0.1:8384/rest/system/status 2>/dev/null | json_pp | \
+        grep cpuPercent | tr -d ':\",' | awk '{ print $2 }' | cut -c -5)
+
+    # Fetch the pid, sedding out the 2nd grep (which is on grep command itself)
+    syncPid=$(ps -ef | grep syncthing | sed -n '1p' | awk '{ print $2 }')
 
     # normal display "ip:192.168.0.17"
     #                "123 days, 2.91%"
-    ./display.py "ip:${myIp}" "${uptime}, ${totalCpu}%"
+    ./display.py "${myIp}" "${uptime}, ${syncCpu}%"
     return 0
 }
 
-if status ; then
-    led_blink slow
+# ----------- button support ----------------
+function button {
+    # Takes a single optional arg which is the number of seconds to wait.
+    # Specifying 0, (or nothing) means wait forever for the button press.
+    # Returns 0 if the button was pressed, or 1 if timed out waiting.
+    buttonPressed=0
+    buttonTimedOut=1
+    waitTimeSecs=${1:-0}
+
+    (
+        # pgio27 is the button input
+        gpio -g mode 27 in
+        # tie the input up
+        gpio -g mode 27 up   
+        # wait indefinitely (in background) for button press (falling edge)
+        gpio -g wfi 27 falling
+        exit $buttonPressed 
+    ) &
+    buttonPid=$!
+    echo "buttonPid=$buttonPid"
+
+    (
+        if (( $waitTimeSecs > 0)) ; then
+            sleep $waitTimeSecs
+        else
+            sleep
+        fi
+        exit $buttonTimedOut 
+    ) &
+    timerPid=$!
+    echo "timerPid=$timerPid"
+
+    wait -n $gpioPid $timerPid
+    waitStatus=$?
+    echo "waitStatus=$waitStatus"
+
+    kill_process ${buttonPid}
+    kill_process ${timerPid}
+    return $waitStatus
+}
+
+
+# ----------- main ----------------
+echo "monitor: waiting 5 secs for button press"
+if button 5 ; then
+    echo "PRESSED"
 else
-    led_blink fast
+    echo "TIMED-OUT"
 fi
+
+# Waiting 5 seconds for the button press, blinking led to draw user attention.
+echo "monitor: waiting 5 secs for button press"
+led_blink fast
+./display.py "press button to" "configure wifi"
+if button 5 ; then
+    echo "monitor: running wifi-connect"
+    led_blink
+    ./display.py "please wifi to" "Syncbox:wolfgang"
+    echo "wifi-connect --portal-ssid Syncbox --portal-passphrase wolfgang"
+    sleep 10		; # simulate wifi connect
+    led_off
+fi
+
+./display.py "fetching system" "status..."
+while : ; do
+    # Update display/led with sys status. This is done asyn because it takes 
+    # quite a while and we don't want the button to be unresponsive for that time.
+    
+    if status ; then
+        led_blink slow
+    else
+        led_blink fast
+    fi
+    
+./display.py "fetching system" "status..."
+    if button 10 ; then
+        echo "someone-wants-to-reboot"
+    fi
+    sleep 10
+
+done
+
+
+
+
+
+
+
+
+
 
 echo "myIp=$myIp"
 echo "pingGatewayOk=$pingGatewayOk"
-echo "totalCpu=$totalCpu"
+echo "syncCpu=$syncCpu"
+echo "syncPid=$syncPid"
 echo "pingApiOk=$pingApiOk"
 echo "uptimeSecs=$uptimeSecs"
 
 sleep 25
 exit
 
-# ----------- led support ----------------
+
 # ----------- led support ----------------
 led_blink fast
 sleep 5
@@ -174,26 +266,6 @@ led_on
 led_off
 exit
 
-# ----------- led support ----------------
-
-# blink while waiting 5 seconds for the button press
-#./blink &
-led_blink fast
-
-#BLINK=$!
-echo "monitor: waiting 5 secs for button press"
-./display.py "press button to" "configure wifi"
-./button.sh 5
-BUTTON=$?
-if [ "$BUTTON" -eq "0" ] ; then
-        led_blink
-        ./display.py "connect to wifi" "Syncbox:wolfgang"
-        echo wifi-connect --portal-ssid Syncbox --portal-passphrase wolfgang
-        sleep 10
-        led_off
-fi
-
-led_off
 
 
 

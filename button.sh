@@ -1,5 +1,47 @@
 #!/bin/bash
 
+# Start two jobs; one with a timer and one with the gpio (listening for button)
+# pgio27 is the button input
+gpio -g mode 27 in
+# tie the input up
+gpio -g mode 27 up   
+# wait indefinitely (in background) for button press (falling edge)
+( gpio -g wfi 27 falling ; exit 2 ) &
+gpioPid=$!
+echo "gpioPid=$gpioPid"
+
+( sleep 5 ; exit 3 ) &
+timerPid=$!
+echo "timerPid=$timerPid"
+
+wait -n $gpioPid $timerPid
+waitStatus=$?
+echo "waitStatus=$waitStatus"
+
+exit 0
+echo uhuhuhuhu
+
+    (
+    while : ; do
+        gpio -g write 10 1
+        sleep $pause
+        gpio -g write 10 0
+        sleep $pause
+    done
+    ) &
+    # inhibit shell printing '[1] terminated ...'
+    # ref: https://www.maketecheasier.com/run-bash-commands-background-linux/
+    disown
+    ledPid=$!
+    echo "new ledPid is $ledPid"
+
+
+
+
+
+
+
+
 usage="$0 max_wait_seconds (0 means forever)"
 # returns; 1 on error
 #	0 on button press
@@ -22,7 +64,7 @@ gpio -g mode 27 in
 gpio -g mode 27 up   
 # wait indefinitely (in background) for button press (falling edge)
 gpio -g wfi 27 falling &
-PID=$!
+gpioPid=$!
 
 TIMER=$1
 while [ true ]; do 
