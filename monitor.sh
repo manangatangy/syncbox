@@ -1,32 +1,66 @@
 #!/bin/bash
 
-trap "exit" INT TERM ERR
-trap "kill 0" EXIT
+# ----------- led support ----------------
+trap "onTerm" INT TERM ERR
+trap "onExit" EXIT
+
+function onExit {
+    exitArgument=$?
+    echo "onExit($exitArgument)"
+    # this causes a trap to onTerm, passing the exit arg
+    # via exitArgument channel
+    kill 0 
+}
+
+function onTerm {
+    termArgument=$?
+    echo "onTerm($termArgument) exitArgument=$exitArgument"
+    if [[ "$termArgument" != "0" ]] ; then
+        # upon ctrl-C, a non-zero result value (130) occurs.
+        # use this as the parameter to onExit.  Note that this
+        # invocation of onTerm is the second last, and there
+        # must be another final invocation, resulting from
+        # onExit calling kill.
+        exitArgument=$termArgument
+        echo "onTerm setting exitArgument=$exitArgument"
+    else
+        # This is the final invocation of onTerm, and the
+        # call from here to exit will return to the shell
+        # Put your final clean up here.
+        # ...
+        echo "onTerm exiting with $exitArgument"
+    fi
+    # this call to exit doesn't result in trap to onExit; it
+    # goes out to the caller, passing its arg to be available
+    # to the caller as $?
+    exit $exitArgument
+}
 
 function kill_process {
     echo "killing ${1}"
-    if [[ ${1-noJob} != noJob ]] ; then
+    if [[ ${1:-noJob} != noJob ]] ; then
         kill ${1} 
     fi
 }
 
 # ----------- led support ----------------
+# ref: http://wiringpi.com/the-gpio-utility/
 gpio -g mode 10 output
 
 function led_on {
-    kill_process ${ledPid-noJob}
+    kill_process ${ledPid:-noJob}
     gpio -g write 10 1
     ledPid=noJob
 }
 
 function led_off {
-    kill_process ${ledPid-noJob}
+    kill_process ${ledPid:-noJob}
     gpio -g write 10 0
     ledPid=noJob
 }
 
 function led_blink {
-    kill_process ${ledPid-noJob}
+    kill_process ${ledPid:-noJob}
     case $1 in
         fast)  pause=0.125
         ;;
@@ -44,6 +78,7 @@ function led_blink {
     done
     ) &
     # inhibit shell printing '[1] terminated ...'
+    # ref: https://www.maketecheasier.com/run-bash-commands-background-linux/
     disown
     ledPid=$!
     echo "new ledPid is $ledPid"
@@ -69,13 +104,15 @@ function status {
         return 1
     fi
 
+    myIp=$(ifconfig wlan0 | grep 'inet ' | awk '{ print $2 }')
+
     # Ping the syncthing api
     pingApiOk=$(curl -H "X-API-Key: GSwL53QQ96gZWJU5DpDTnqzJTzi2bn4K"  \
         http://127.0.0.1:8384/rest/system/ping 2>/dev/null | json_pp | \
         grep pong >/dev/null \
         && echo ok || echo error)
     if [[ $pingApiOk != "ok" ]] ; then
-        ./display.py "no api-ping" "syncthing dead?"
+        ./display.py "ip:${myIp}" "syncthing dead?"
         return 1
     fi
 
@@ -84,6 +121,7 @@ function status {
         http://127.0.0.1:8384/rest/system/status 2>/dev/null | json_pp | \
         grep uptime | tr -d ':,' | awk '{ print $2 }')
 
+    # ref for exprs: http://wiki.bash-hackers.org/start
     if (( $uptimeSecs < 60)) ; then
         # less than 1 min
         uptime="$uptimeSecs secs"
@@ -96,8 +134,6 @@ function status {
     else
         uptime="$(($uptimeSecs / 86400)) days"
     fi
-
-    myIp=$(ifconfig wlan0 | grep 'inet ' | awk '{ print $2 }')
 
     # Check cpu load
     userCpu=$(top -b -n 1 -p 0 | grep Cpu | awk '{ print $2 }')
@@ -137,7 +173,6 @@ led_off
 led_on
 led_off
 exit
-
 
 # ----------- led support ----------------
 
