@@ -6,7 +6,7 @@ trap "onExit" EXIT
 
 function onExit {
     exitArgument=$?
-    echo "onExit($exitArgument)"
+    echo "monitor: onExit($exitArgument)"
     # this causes a trap to onTerm, passing the exit arg
     # via exitArgument channel
     kill 0 
@@ -14,7 +14,7 @@ function onExit {
 
 function onTerm {
     termArgument=$?
-    echo "onTerm($termArgument) exitArgument=$exitArgument"
+    echo "monitor: onTerm($termArgument) exitArgument=$exitArgument"
     if [[ "$termArgument" != "0" ]] ; then
         # upon ctrl-C, a non-zero result value (130) occurs.
         # use this as the parameter to onExit.  Note that this
@@ -22,13 +22,13 @@ function onTerm {
         # must be another final invocation, resulting from
         # onExit calling kill.
         exitArgument=$termArgument
-        echo "onTerm setting exitArgument=$exitArgument"
+        echo "monitor: onTerm setting exitArgument=$exitArgument"
     else
         # This is the final invocation of onTerm, and the
         # call from here to exit will return to the shell
         # Put your final clean up here.
         # ...
-        echo "onTerm exiting with $exitArgument"
+        echo "monitor: onTerm exiting with $exitArgument"
     fi
     # this call to exit doesn't result in trap to onExit; it
     # goes out to the caller, passing its arg to be available
@@ -39,7 +39,7 @@ function onTerm {
 function kill_process {
     # Single arg which is the pid of job to be killed.
     # Undefined, empty, or noJob arg means nothing will be killed.
-    echo "killing ${1}"
+    echo "monitor: killing ${1}"
     if [[ ${1:-noJob} != noJob ]] ; then
         kill ${1} 2&>1 >/dev/null
     fi
@@ -84,17 +84,28 @@ function led_blink {
     # ref: https://www.maketecheasier.com/run-bash-commands-background-linux/
     disown
     ledPid=$!
-    echo "new ledPid is $ledPid"
+    echo "monitor: new ledPid is $ledPid"
+}
+
+# ----------- lcd ----------------
+function displayLcd {
+    # Takes two display strings
+    ~pi/display.py "$1" "$2"
 }
 
 # ----------- status checks ----------------
 function status {
+    # Perform various healths on wifi, network, syncthing, and return 0 if 
+    # everything is good. If not ok, the display errors to the LCD and return false.
+
     # Check there is a wifi connection
     # An alternative is iwconfig 2&>1 | grep wlan0 | grep ESSID
+    displayLcd "fetching system" "status..."
+
     wlanOk=$(nmcli | grep "wlan0: connected to" >/dev/null \
         && echo ok || echo error)
     if [[ $wlanOk != "ok" ]] ; then
-        ./display.py "no wifi, please" "reboot & config"
+        displayLcd "no wifi, please" "reboot & config"
         return 1
     fi
 
@@ -103,7 +114,7 @@ function status {
     pingGatewayOk=$(ping -q -w 1 -c 1 $gatewayIp >/dev/null \
         && echo ok || echo error)
     if [[ $pingGatewayOk != "ok" ]] ; then
-        ./display.py "no net gateway" "connectivity"
+        displayLcd "no net gateway" "connectivity"
         return 1
     fi
 
@@ -115,7 +126,7 @@ function status {
         grep pong >/dev/null \
         && echo ok || echo error)
     if [[ $pingApiOk != "ok" ]] ; then
-        ./display.py "${myIp}" "syncthing dead?"
+        displayLcd "${myIp}" "syncthing dead?"
         return 1
     fi
 
@@ -148,18 +159,21 @@ function status {
 
     # normal display "ip:192.168.0.17"
     #                "123 days, 2.91%"
-    ./display.py "${myIp}" "${uptime}, ${syncCpu}%"
+    displayLcd "${myIp}" "${uptime}, ${syncCpu}%"
     return 0
 }
 
 # ----------- button support ----------------
 function button {
+    # Waits for a button click, or a timeout.
     # Takes a single optional arg which is the number of seconds to wait.
     # Specifying 0, (or nothing) means wait forever for the button press.
     # Returns 0 if the button was pressed, or 1 if timed out waiting.
+    waitTimeSecs=${1:-0}
+    echo "monitor: waiting $waitTimeSecs secs for button press"
+
     buttonPressed=0
     buttonTimedOut=1
-    waitTimeSecs=${1:-0}
 
     (
         # pgio27 is the button input
@@ -171,7 +185,7 @@ function button {
         exit $buttonPressed 
     ) &
     buttonPid=$!
-    echo "buttonPid=$buttonPid"
+    echo "monitor: buttonPid=$buttonPid"
 
     (
         if (( $waitTimeSecs > 0)) ; then
@@ -182,11 +196,12 @@ function button {
         exit $buttonTimedOut 
     ) &
     timerPid=$!
-    echo "timerPid=$timerPid"
+    echo "monitor: timerPid=$timerPid"
 
     wait -n $gpioPid $timerPid
     waitStatus=$?
-    echo "waitStatus=$waitStatus"
+    echo "monitor: button $( if [[ $waitStatus == $buttonPressed ]] ; \
+        then echo 'PRESSED' ; else echo 'NOT pressed' ; fi )"
 
     kill_process ${buttonPid}
     kill_process ${timerPid}
@@ -195,27 +210,19 @@ function button {
 
 
 # ----------- main ----------------
-echo "monitor: waiting 5 secs for button press"
-if button 5 ; then
-    echo "PRESSED"
-else
-    echo "TIMED-OUT"
-fi
 
 # Waiting 5 seconds for the button press, blinking led to draw user attention.
-echo "monitor: waiting 5 secs for button press"
 led_blink fast
-./display.py "press button to" "configure wifi"
+displayLcd "press button to" "configure wifi"
 if button 5 ; then
     echo "monitor: running wifi-connect"
     led_blink
-    ./display.py "please wifi to" "Syncbox:wolfgang"
+    displayLcd "wifi-connect at:" "Syncbox:wolfgang"
     echo "wifi-connect --portal-ssid Syncbox --portal-passphrase wolfgang"
     sleep 10		; # simulate wifi connect
     led_off
 fi
 
-./display.py "fetching system" "status..."
 while : ; do
     # Update display/led with sys status. This is done asyn because it takes 
     # quite a while and we don't want the button to be unresponsive for that time.
@@ -226,11 +233,8 @@ while : ; do
         led_blink fast
     fi
     
-./display.py "fetching system" "status..."
-    if button 10 ; then
-        echo "someone-wants-to-reboot"
-    fi
-    sleep 10
+    echo "monitor: sleeping for a bit..."
+    sleep 30
 
 done
 
