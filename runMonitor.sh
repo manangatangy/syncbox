@@ -1,36 +1,66 @@
 #!/bin/bash
 
-# Should be executed as user pi
-# Runs the monitor script as a background process in
-# pi home, writing all output to ~/monitor.log
-# eg place this in /etc/rc.local:
-#    sudo -u pi ~/runMonitor.sh &
-# The & is needed because rc.local exits and we want
+NAME=monitor
+USER=pi
+WDIR=$(eval echo "~$USER")
+PIDFILE=$WDIR/$NAME.pid
+#This is the command to be run, give the full pathname
+DAEMON=$WDIR/${NAME}.sh
+LOGFILE=$WDIR/${NAME}.log
 
-cd ~
-rm runMonitor.log monitor.log
-echo "runMonitor: id=$(id)"  >>runMonitor.log
-echo "runMonitor: pwd=$(pwd)"  >>runMonitor.log
-echo "runMonitor: starting /.monitor.sh"  >>runMonitor.log
+case "$1" in
+  start)
+    echo -n "Starting: "$NAME
+    start-stop-daemon \
+        --start \
+        --pidfile $PIDFILE \
+        --user $USER \
+        --make-pidfile \
+        --startas $DAEMON \
+        --background \
+        --chuid $USER \
+        --chdir $WDIR \
+        --verbose \
+        -- -logfile $LOGFILE 
+    ;;
+  stop)
+    echo -n "Stopping: "$NAME
+    start-stop-daemon \
+        --stop \
+        --pidfile $PIDFILE \
+        --user $USER \
+        --remove-pidfile \
+        --retry=TERM/30/KILL/5 \
+        --verbose
+    ;;
+  status)
+    # Ref: http://refspecs.linuxfoundation.org/LSB_3.1.0/LSB-Core-generic/LSB-Core-generic/iniscrptact.html
+    start-stop-daemon \
+        --status \
+        --pidfile $PIDFILE \
+        --user $USER 
+    status=$?
+    case "$status" in
+      0)
+        echo "$NAME is running OK"
+        ;;
+      1)
+        echo "$NAME is dead and /var/run pid file exists"
+        ;;
+      2)
+        echo "$NAME is dead and /var/lock lock file exists"
+        ;;
+      3)
+        echo "$NAME is not running"
+        ;;
+      *)
+        echo "$NAME status is unknown"
+        ;;
+    esac
+    ;;
+  *)
+    echo "Usage: "$1" {start|stop|status}"
+    exit 1
+esac
 
-##./monitor.sh 2>&1 >monitor.log &
-## https://stackoverflow.com/a/11255498
-## &>logfile
-## ref: http://man7.org/linux/man-pages/man8/start-stop-daemon.8.html
-## ref: example start-stop: https://gist.github.com/alobato/1968852
-## another example: https://codereview.stackexchange.com/questions/2217/is-this-a-decent-way-of-writing-a-start-stop-daemon-script
-## example: https://www.raspberrypi.org/forums/viewtopic.php?t=62579
-
-
-
-(
-while : ; do
-    echo "test monitor stil running..." >>monitor.log
-    sleep 10
-done
-) &
-
-echo "runMonitor: monitor pid $!" >>runMonitor.log
-wait
-exit $?
-
+exit 0

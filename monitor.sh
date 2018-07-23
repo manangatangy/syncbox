@@ -211,74 +211,40 @@ function button {
 
 # ----------- main ----------------
 
-# Waiting 5 seconds for the button press, blinking led to draw user attention.
+if [[ $1 == "-logfile" ]] ; then
+    logfile=${2:-logfile}
+    exec &> $logfile
+fi
+
+# Waiting 10 seconds for the button press, blinking led to draw user attention.
 led_blink fast
 displayLcd "press button to" "configure wifi"
-if button 5 ; then
+if button 10 ; then
     echo "monitor: running wifi-connect"
     led_blink
     displayLcd "wifi-connect at:" "Syncbox:wolfgang"
-    echo "wifi-connect --portal-ssid Syncbox --portal-passphrase wolfgang"
-    sleep 10		; # simulate wifi connect
+    sudo wifi-connect --portal-ssid Syncbox --portal-passphrase wolfgang
     led_off
 fi
 
 while : ; do
-    # Update display/led with sys status. This is done asyn because it takes 
-    # quite a while and we don't want the button to be unresponsive for that time.
-    
     if status ; then
         led_blink slow
     else
         led_blink fast
     fi
-    
-    echo "monitor: sleeping for a bit..."
     sleep 30
-
 done
 
+exit 0
+
+# "192.168.0.17    "
+# "2018 03 30,20:10"
+# "uptime 234 days "
+# "sync load 23%   "
+# "diskuse root 99%"
+# "diskuse sync 99%"
 
 
-
-
-
-
-
-
-
-echo "myIp=$myIp"
-echo "pingGatewayOk=$pingGatewayOk"
-echo "syncCpu=$syncCpu"
-echo "syncPid=$syncPid"
-echo "pingApiOk=$pingApiOk"
-echo "uptimeSecs=$uptimeSecs"
-
-sleep 25
-exit
-
-
-# ----------- led support ----------------
-led_blink fast
-sleep 5
-led_on
-sleep 3
-led_blink slow
-sleep 5
-led_off
-led_on
-led_off
-exit
-
-
-
-
-
-
-
-st_cpu=`curl -H "X-API-Key: GSwL53QQ96gZWJU5DpDTnqzJTzi2bn4K"  http://127.0.0.1:8384/rest/system/status |json_pp | grep cpuPercent | tr -d ':\",' | awk '{ print $2 }' | cut -c -6`
-echo "syncthing cpu is $st_cpu"
-
-./display.py "cpu $st_cpu%" ""
-# curl -X GET -H "X-API-Key: GSwL53QQ96gZWJU5DpDTnqzJTzi2bn4K"  http://127.0.0.1:8384/rest/stats/folder | json_pp
-
+# "diskuse 99% 99% "
+# ""
