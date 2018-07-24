@@ -93,32 +93,75 @@ function displayLcd {
     ~pi/display.py "$1" "$2"
 }
 
-# ----------- status checks ----------------
+# ----------- status routines ----------------
 function status {
-    # Perform various healths on wifi, network, syncthing, and return 0 if 
-    # everything is good. If not ok, the display errors to the LCD and return false.
+    # Perform various healths on wifi, network, syncthing, and 
+    # return 0 if everything is good. If not ok, then display 
+    # errors to the LCD and return false.
+    # If no error, display line 1 
+    #    is "192.168.0.17    ", line 2 depends on the arg:
+    # 0 --> "2018 03 30,20:10"  (date time)
+    # 1 --> "uptime 234 days "
+    # 2 --> "sync load 23%   "
+    # 3 --> "diskuse root 99%"
+    # 4 --> "diskuse sync 99%"
+    # The connectivity check is only performed for arg=0
+
+    displayLcd "fetching system" "status..."
+
+    getConnectivity ; connectivityOk=$?
+    if (( $connectivityOk != 0 )) ; then
+        case $? in
+            1)
+                displayLcd "no wifi, please" "reboot & config"
+                ;;
+            2)
+                displayLcd "no net gateway" "connectivity"
+                ;;
+            3)
+                displayLcd "${myIp}" "syncthing dead?"
+                ;;
+            *)
+                displayLcd "connectivity" "error $connectivityOk"
+                ;;
+        esac
+    else
+    fi
+
+    myIp=$(ifconfig wlan0 | grep 'inet ' | awk '{ print $2 }')
+
+    upTime=$(getUptime)
+    syncCpu=$(getSyncCpu)
+
+
+    # normal display "192.168.0.17    "
+    #                "123 days, 2.91% "
+    displayLcd "${myIp}" "${upTime}, ${syncCpu}"
+    return 0
+}
+
+function getConnectivity {
+    # Returns 0, if connectivity is ok, otherwise
+    # there is a connectivity error, then return error code:
+    # 1 -> no wifi
+    # 2 -> no gateway
+    # 3 -> no syncthing ping
 
     # Check there is a wifi connection
     # An alternative is iwconfig 2&>1 | grep wlan0 | grep ESSID
-    displayLcd "fetching system" "status..."
-
     wlanOk=$(nmcli | grep "wlan0: connected to" >/dev/null \
         && echo ok || echo error)
     if [[ $wlanOk != "ok" ]] ; then
-        displayLcd "no wifi, please" "reboot & config"
         return 1
     fi
 
-    # Fetch ip address and check connectivity to gateway
+    # Fetch gateway ip address and check connectivity to gateway
     gatewayIp=$(ip r | grep default | cut -d ' ' -f 3)
     pingGatewayOk=$(ping -q -w 1 -c 1 $gatewayIp >/dev/null \
         && echo ok || echo error)
     if [[ $pingGatewayOk != "ok" ]] ; then
-        displayLcd "no net gateway" "connectivity"
-        return 1
+        return 2
     fi
-
-    myIp=$(ifconfig wlan0 | grep 'inet ' | awk '{ print $2 }')
 
     # Ping the syncthing api
     pingApiOk=$(curl -H "X-API-Key: GSwL53QQ96gZWJU5DpDTnqzJTzi2bn4K"  \
@@ -126,9 +169,22 @@ function status {
         grep pong >/dev/null \
         && echo ok || echo error)
     if [[ $pingApiOk != "ok" ]] ; then
-        displayLcd "${myIp}" "syncthing dead?"
-        return 1
+        return 3
     fi
+    return 0
+}
+
+function getIp {
+    # Returns 0, writes to stdout "192.168.0.99"
+    myIp=$(ifconfig wlan0 | grep 'inet ' | awk '{ print $2 }')
+    echo "$myIp"
+    return 0
+}
+
+function getUptime {
+    # Returns 0, writes to stdout "uptime 234 days"
+    # Fetch the pid, sedding out the 2nd grep (which is on grep command itself)
+    syncPid=$(ps -ef | grep syncthing | sed -n '1p' | awk '{ print $2 }')
 
     # Fetch uptime from syncthing api
     uptimeSecs=$(curl -H "X-API-Key: GSwL53QQ96gZWJU5DpDTnqzJTzi2bn4K"  \
@@ -138,28 +194,27 @@ function status {
     # ref for exprs: http://wiki.bash-hackers.org/start
     if (( $uptimeSecs < 60)) ; then
         # less than 1 min
-        uptime="$uptimeSecs secs"
+        uptimeTxt="$uptimeSecs secs"
     elif (( $uptimeSecs < 3600)) ; then
         # less than 1 hour
-        uptime="$(($uptimeSecs / 60)) mins"
+        uptimeTxt="$(($uptimeSecs / 60)) mins"
     elif (( $uptimeSecs < 86400)) ; then
         # less than 1 day
-        uptime="$(($uptimeSecs / 3600)) hours"
+        uptimeTxt="$(($uptimeSecs / 3600)) hours"
     else
-        uptime="$(($uptimeSecs / 86400)) days"
+        uptimeTxt="$(($uptimeSecs / 86400)) days"
     fi
+    echo "uptime $uptimeTxt"
+    return 0
+}
 
+function getSyncCpu {
+    # Returns 0, writes to stdout "sync load 23%"
     # Check cpu load. 
-    syncCpu=$(curl -H "X-API-Key: GSwL53QQ96gZWJU5DpDTnqzJTzi2bn4K"  \
+    syncCpuTxt=$(curl -H "X-API-Key: GSwL53QQ96gZWJU5DpDTnqzJTzi2bn4K"  \
         http://127.0.0.1:8384/rest/system/status 2>/dev/null | json_pp | \
         grep cpuPercent | tr -d ':\",' | awk '{ print $2 }' | cut -c -5)
-
-    # Fetch the pid, sedding out the 2nd grep (which is on grep command itself)
-    syncPid=$(ps -ef | grep syncthing | sed -n '1p' | awk '{ print $2 }')
-
-    # normal display "ip:192.168.0.17"
-    #                "123 days, 2.91%"
-    displayLcd "${myIp}" "${uptime}, ${syncCpu}%"
+    echo "${syncCpuTxt}%"
     return 0
 }
 
@@ -248,3 +303,9 @@ exit 0
 
 # "diskuse 99% 99% "
 # ""
+
+# mail
+# http://www.raspberry-projects.com/pi/software_utilities/email/ssmtp-to-send-emails
+# this ref is about setting up without requiring a password
+# https://blog.dantup.com/2016/04/setting-up-raspberry-pi-raspbian-jessie-to-send-email/
+
