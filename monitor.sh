@@ -6,7 +6,7 @@ trap "onExit" EXIT
 
 function onExit {
     exitArgument=$?
-    echo "monitor: onExit($exitArgument)"
+    log "onExit exitArgument=$exitArgument"
     # this causes a trap to onTerm, passing the exit arg
     # via exitArgument channel
     kill 0 
@@ -14,7 +14,6 @@ function onExit {
 
 function onTerm {
     termArgument=$?
-    echo "monitor: onTerm($termArgument) exitArgument=$exitArgument"
     if [[ "$termArgument" != "0" ]] ; then
         # upon ctrl-C, a non-zero result value (130) occurs.
         # use this as the parameter to onExit.  Note that this
@@ -22,13 +21,13 @@ function onTerm {
         # must be another final invocation, resulting from
         # onExit calling kill.
         exitArgument=$termArgument
-        echo "monitor: onTerm setting exitArgument=$exitArgument"
+        log "onTerm setting exitArgument=$exitArgument"
     else
         # This is the final invocation of onTerm, and the
         # call from here to exit will return to the shell
         # Put your final clean up here.
         # ...
-        echo "monitor: onTerm exiting with $exitArgument"
+        log "onTerm exiting with $exitArgument"
     fi
     # this call to exit doesn't result in trap to onExit; it
     # goes out to the caller, passing its arg to be available
@@ -39,7 +38,7 @@ function onTerm {
 function kill_process {
     # Single arg which is the pid of job to be killed.
     # Undefined, empty, or noJob arg means nothing will be killed.
-    echo "monitor: killing ${1}"
+    #echo "monitor: killing ${1}"
     if [[ ${1:-noJob} != noJob ]] ; then
         kill ${1} 2&>1 >/dev/null
     fi
@@ -84,75 +83,64 @@ function led_blink {
     # ref: https://www.maketecheasier.com/run-bash-commands-background-linux/
     disown
     ledPid=$!
-    echo "monitor: new ledPid is $ledPid"
+    #echo "monitor: new ledPid is $ledPid"
 }
 
 # ----------- lcd ----------------
 function displayLcd {
     # Takes two display strings
-    ~pi/display.py "$1" "$2"
+    ~pi/display.py "$1" "$2" &>/dev/null
 }
 
 # ----------- status routines ----------------
-function status {
-    # Perform various healths on wifi, network, syncthing, and 
-    # return 0 if everything is good. If not ok, then display 
-    # errors to the LCD and return false.
-    # If no error, display line 1 
-    #    is "192.168.0.17    ", line 2 depends on the arg:
-    # 0 --> "2018 03 30,20:10"  (date time)
+function statusDisplay {
+    # Takes two args, line1 and the cycle mode (0..4),  and
+    # displays to lcd some info (mode dependent).
+    # The first line displayed is arg1, second depends on the mode:
+    # 0 --> "11:15 2018-07-24"  (date time)
     # 1 --> "uptime 234 days "
     # 2 --> "sync load 23%   "
     # 3 --> "diskuse root 99%"
     # 4 --> "diskuse sync 99%"
-    # The connectivity check is only performed for arg=0
-
-    displayLcd "fetching system" "status..."
-
-    getConnectivity ; connectivityOk=$?
-    if (( $connectivityOk != 0 )) ; then
-        case $? in
-            1)
-                displayLcd "no wifi, please" "reboot & config"
-                ;;
-            2)
-                displayLcd "no net gateway" "connectivity"
-                ;;
-            3)
-                displayLcd "${myIp}" "syncthing dead?"
-                ;;
-            *)
-                displayLcd "connectivity" "error $connectivityOk"
-                ;;
-        esac
-    else
-    fi
-
-    myIp=$(ifconfig wlan0 | grep 'inet ' | awk '{ print $2 }')
-
-    upTime=$(getUptime)
-    syncCpu=$(getSyncCpu)
-
-
-    # normal display "192.168.0.17    "
-    #                "123 days, 2.91% "
-    displayLcd "${myIp}" "${upTime}, ${syncCpu}"
-    return 0
+    line1=$1
+    mode=$2
+    case $mode in 
+        0)
+            displayLcd "${line1}" "$(date '+%R %F')"
+            ;;
+        1)
+            displayLcd "${line1}" "$(getUptime)"
+            ;;
+        2)
+            displayLcd "${line1}" "$(getSyncCpu)"
+            ;;
+        3)
+            displayLcd "${line1}" "$(getDiskUsed root 'diskuse root')"
+            ;;
+        4)
+            displayLcd "${line1}" "$(getDiskUsed syncdisk 'diskuse sync')"
+            ;;
+    esac
 }
 
-function getConnectivity {
-    # Returns 0, if connectivity is ok, otherwise
-    # there is a connectivity error, then return error code:
-    # 1 -> no wifi
-    # 2 -> no gateway
-    # 3 -> no syncthing ping
+#    displayLcd "fetching system" "status..."
+    # normal display "192.168.0.17    "
+    #                "123 days, 2.91% "
+#    displayLcd "${myIp}" "${upTime}, ${syncCpu}"
+
+function checkConnectivity {
+    # Writes to stdout an integer connectivity status:
+    # 0 means no connectivity errors
+    # 1 means no wifi
+    # 2 means no gateway
+    # 3 means no syncthing ping
 
     # Check there is a wifi connection
     # An alternative is iwconfig 2&>1 | grep wlan0 | grep ESSID
     wlanOk=$(nmcli | grep "wlan0: connected to" >/dev/null \
         && echo ok || echo error)
     if [[ $wlanOk != "ok" ]] ; then
-        return 1
+        echo 1
     fi
 
     # Fetch gateway ip address and check connectivity to gateway
@@ -160,7 +148,7 @@ function getConnectivity {
     pingGatewayOk=$(ping -q -w 1 -c 1 $gatewayIp >/dev/null \
         && echo ok || echo error)
     if [[ $pingGatewayOk != "ok" ]] ; then
-        return 2
+        echo 2
     fi
 
     # Ping the syncthing api
@@ -169,16 +157,43 @@ function getConnectivity {
         grep pong >/dev/null \
         && echo ok || echo error)
     if [[ $pingApiOk != "ok" ]] ; then
-        return 3
+        echo 3
     fi
-    return 0
+    echo 0
+}
+
+function displayConnectivity {
+    # Perform various healths on wifi, network, syncthing and
+    # if all good, print "192.168.0.17" (ip address) to stdout
+    # and return status of 0.  Otherwise display the error msg,
+    # echo it to stdout and return status of 1.
+
+    case "$(checkConnectivity)" in
+        0)
+            echo "$(getIp)"
+            return 0
+            ;;
+        1)
+            displayLcd "no wifi, please" "reboot & config"
+            errorText="no wifi"
+            ;;
+        2)
+            displayLcd "no net gateway" "connectivity"
+            errorText="no gateway"
+            ;;
+        3)
+            displayLcd "$(getIp)" "syncthing dead?"
+            errorText="no ping from syncthing"
+            ;;
+    esac
+    echo "${errorText}"
+    return 1
 }
 
 function getIp {
     # Returns 0, writes to stdout "192.168.0.99"
     myIp=$(ifconfig wlan0 | grep 'inet ' | awk '{ print $2 }')
     echo "$myIp"
-    return 0
 }
 
 function getUptime {
@@ -205,7 +220,6 @@ function getUptime {
         uptimeTxt="$(($uptimeSecs / 86400)) days"
     fi
     echo "uptime $uptimeTxt"
-    return 0
 }
 
 function getSyncCpu {
@@ -214,8 +228,15 @@ function getSyncCpu {
     syncCpuTxt=$(curl -H "X-API-Key: GSwL53QQ96gZWJU5DpDTnqzJTzi2bn4K"  \
         http://127.0.0.1:8384/rest/system/status 2>/dev/null | json_pp | \
         grep cpuPercent | tr -d ':\",' | awk '{ print $2 }' | cut -c -5)
-    echo "${syncCpuTxt}%"
-    return 0
+    echo "sync load ${syncCpuTxt}%"
+}
+
+function getDiskUsed {
+    # Takes usage "getDiskUsed match text"
+    # Returns 0, writes to stdout "text 23%"
+    used=$(df --output=source,target,pcent | grep $1 \
+            | awk '{ print $3 }')
+    echo "$2 $used"
 }
 
 # ----------- button support ----------------
@@ -225,7 +246,7 @@ function button {
     # Specifying 0, (or nothing) means wait forever for the button press.
     # Returns 0 if the button was pressed, or 1 if timed out waiting.
     waitTimeSecs=${1:-0}
-    echo "monitor: waiting $waitTimeSecs secs for button press"
+    log "waiting $waitTimeSecs secs for button press"
 
     buttonPressed=0
     buttonTimedOut=1
@@ -240,7 +261,6 @@ function button {
         exit $buttonPressed 
     ) &
     buttonPid=$!
-    echo "monitor: buttonPid=$buttonPid"
 
     (
         if (( $waitTimeSecs > 0)) ; then
@@ -251,11 +271,10 @@ function button {
         exit $buttonTimedOut 
     ) &
     timerPid=$!
-    echo "monitor: timerPid=$timerPid"
 
     wait -n $gpioPid $timerPid
     waitStatus=$?
-    echo "monitor: button $( if [[ $waitStatus == $buttonPressed ]] ; \
+    log "button $( if [[ $waitStatus == $buttonPressed ]] ; \
         then echo 'PRESSED' ; else echo 'NOT pressed' ; fi )"
 
     kill_process ${buttonPid}
@@ -263,34 +282,47 @@ function button {
     return $waitStatus
 }
 
+function log {
+    echo "$(date --iso-8601=minutes) $1"
+}
 
 # ----------- main ----------------
-
 if [[ $1 == "-logfile" ]] ; then
     logfile=${2:-logfile}
     exec &> $logfile
 fi
 
+log "startup"
+
 # Waiting 10 seconds for the button press, blinking led to draw user attention.
 led_blink fast
 displayLcd "press button to" "configure wifi"
 if button 10 ; then
-    echo "monitor: running wifi-connect"
+    log "running wifi-connect"
+    ##nmcli device wifi | while read line ; do log "$line" done
     led_blink
     displayLcd "wifi-connect at:" "Syncbox:wolfgang"
     sudo wifi-connect --portal-ssid Syncbox --portal-passphrase wolfgang
+    log "connected to $(nmcli -t -f NAME con show)"
     led_off
 fi
 
 while : ; do
-    if status ; then
+    if connectivityResult="$(displayConnectivity)" ; then
+        # connectivityResult ==> myIp
         led_blink slow
+        for mode in 0 1 2 3 4 ; do
+            statusDisplay "${connectivityResult}" $mode
+            sleep 6
+            # 30 seconds for a complete cycle
+        done
     else
+        # connectivityResult ==> error text
+        log "error:${connectivityResult}"
         led_blink fast
+        sleep 5
     fi
-    sleep 30
 done
-
 exit 0
 
 # "192.168.0.17    "
