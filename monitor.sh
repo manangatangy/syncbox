@@ -267,71 +267,58 @@ function log {
 }
 
 # ----------- main ----------------
+function main {
+    # arg1 is the time to wait for config wifi button
+    # defaults to 1 sec
+    buttonWait=${1:-1}
+    log "startup"
+
+    # Waiting several seconds for the button press, 
+    # blinking led to draw user attention.
+    ledBlink fast
+    displayLcd "press button to" "configure wifi"
+    if gpioButton $buttonWait ; then
+        log "running wifi-connect"
+        ##nmcli device wifi | while read line ; do log "$line" done
+        ledBlink
+        displayLcd "wifi-connect at:" "Syncbox:wolfgang"
+        sudo wifi-connect --portal-ssid Syncbox \
+            --portal-passphrase wolfgang
+        log "connected to $(nmcli -t -f NAME con show)"
+        ledOff
+    fi
+
+    while : ; do
+        if result="$(syncAvailability)" ; then
+            # result ==> myIp
+            ledBlink slow
+            for mode in 0 1 2 3 4 ; do
+                displayStatus "${result}" $mode
+                sleep 6
+                # 30 seconds for a complete cycle
+            done
+        else
+            # result ==> error text
+            log "error:${result}"
+            ledBlink fast
+            sleep 5
+        fi
+    done
+}
+
+# ----------- entry ----------------
 if [[ $1 == "-logfile" ]] ; then
     logfile=${2:-logfile}
     exec &> $logfile
 fi
 
-log "startup"
-
-# Waiting 10 seconds for the button press, blinking led to draw user attention.
-ledBlink fast
-displayLcd "press button to" "configure wifi"
-if gpioButton 10 ; then
-    log "running wifi-connect"
-    ##nmcli device wifi | while read line ; do log "$line" done
-    ledBlink
-    displayLcd "wifi-connect at:" "Syncbox:wolfgang"
-    sudo wifi-connect --portal-ssid Syncbox --portal-passphrase wolfgang
-    log "connected to $(nmcli -t -f NAME con show)"
-    ledOff
-fi
-
-while : ; do
-    if result="$(syncAvailability)" ; then
-        # result ==> myIp
-        ledBlink slow
-        for mode in 0 1 2 3 4 ; do
-            displayStatus "${result}" $mode
-            sleep 6
-            # 30 seconds for a complete cycle
-        done
-    else
-        # result ==> error text
-        log "error:${result}"
-        ledBlink fast
-        sleep 5
-    fi
-done
+main 10
 
 
 
-function testret {
-  if [[ "$1" == "ok" ]] ; then
-    echo "all-ok"
-    return 0
-  else
-    echo "all-nbg"
-    return 1
-  fi
-}
-
-if x=$(testret bad) ; then
-    echo yes $x
-else
-    echo no  $x
-fi
-
-if x=$(testret ok) ; then
-    echo yes $x
-else
-    echo no  $x
-fi
-
-
-
-
-# mail
+# todo:
+#   mail
+#   button to reboot (multi-press option?)
 # http://www.raspberry-projects.com/pi/software_utilities/email/ssmtp-to-send-emails
 # this ref is about setting up without requiring a password
 # https://blog.dantup.com/2016/04/setting-up-raspberry-pi-raspbian-jessie-to-send-email/
