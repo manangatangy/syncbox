@@ -314,13 +314,19 @@ fi
 
 main 10
 
-
-
 # todo:
 #   mail
 #   button to reboot (multi-press option?)
 # http://www.raspberry-projects.com/pi/software_utilities/email/ssmtp-to-send-emails
 # this ref is about setting up without requiring a password
 # https://blog.dantup.com/2016/04/setting-up-raspberry-pi-raspbian-jessie-to-send-email/
+
+subject=$(curl -H "X-API-Key: GSwL53QQ96gZWJU5DpDTnqzJTzi2bn4K" \
+    'http://127.0.0.1:8384/rest/system/error' 2>/dev/null | \
+    grep '{"errors":null}' >/dev/null && echo ok || echo ERROR)
+
+
+./syncStats.sh | mail -s "Syncbox status: $subject" david.x.weiss@gmail.com
+
 
 exit 0
