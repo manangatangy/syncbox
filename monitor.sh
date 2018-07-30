@@ -40,7 +40,7 @@ function killProcess {
     # Undefined, empty, or noJob arg means nothing will be killed.
     #echo "monitor: killing ${1}"
     if [[ ${1:-noJob} != noJob ]] ; then
-        kill ${1} 2&>1 >/dev/null
+        kill ${1} >/dev/null 2>&1
     fi
 }
 
@@ -89,7 +89,7 @@ function ledBlink {
 # ----------- lcd ----------------
 function displayLcd {
     # Takes two display strings
-    ./display.py "$1" "$2" &>/dev/null
+    ./display.py "$1" "$2" >/dev/null 2>&1
 }
 
 # ----------- button support ----------------
@@ -137,19 +137,19 @@ function gpioButton {
 
 # ----------- availability check routines ----------------
 function testWlan {
-    # An alternative is iwconfig 2&>1 | grep wlan0 | grep ESSID
-    nmcli | grep "wlan0: connected to" >/dev/null
+    # An alternative is iwconfig 2>&1 | grep wlan0 | grep ESSID
+    nmcli | grep "wlan0: connected to" >/dev/null 2>&1
 }
 
 function testGateway {
     gatewayIp=$(ip r | grep default | cut -d ' ' -f 3)
-    ping -q -w 1 -c 1 $gatewayIp >/dev/null
+    ping -q -w 1 -c 1 $gatewayIp >/dev/null 2>&1
 }
 
 function testSyncPing {
     curl -H "X-API-Key: GSwL53QQ96gZWJU5DpDTnqzJTzi2bn4K"  \
-        http://127.0.0.1:8384/rest/system/ping 2>/dev/null | json_pp | \
-        grep pong >/dev/null
+        http://127.0.0.1:8384/rest/system/ping 2>/dev/null | \
+        json_pp | grep pong >/dev/null
 }
 
 function syncAvailability {
@@ -161,7 +161,7 @@ function syncAvailability {
 
     # 1. Check there is a wifi connection
     if ! testWlan ; then
-        displayLcd "no wifi, please" "reboot & config"
+        displayLcd "no wifi, maybe" "reboot, config ?"
         echo "no wifi"
         return 1
     fi
@@ -266,20 +266,89 @@ function log {
     echo "$(date --iso-8601=minutes) $1"
 }
 
+# ----------- nmcli routines ----------------
+function deleteAllConnections {
+    nmcli --fields NAME con show | awk '{print $1}' | while read name
+    do
+        if [[ "$name" != "NAME" ]] ; then
+            log "deleting connection $name"
+            sudo nmcli con del id "$name" || true
+        fi
+    done 
+}
+
+function hasAnyConnections {
+    # Sets a return status 0 if there is any connections, else 1
+    nmcli --fields UUID,NAME con show | grep -v NAME >/dev/null
+}
+
+# ----------- option selection ----------------
+function optionSelect {
+    # Cycle through a list of options, allow user to select one.
+
+    displayLcd "press to select" " 4 options..."
+    sleep 3
+    displayLcd "1. email status" "   report ?"
+    if gpioButton 3 ; then
+        displayLcd "emailing ..." ""
+        ledBlink fast
+        log "user request email report"
+        ./report.sh -email || true
+        return
+    fi
+    displayLcd "2. shutdown" "   syncbox ?"
+    if gpioButton 3 ; then
+        displayLcd "shutting down..." ""
+        ledBlink fast
+        log "user request shutdown"
+        sudo shutdown now
+        return
+    fi
+    displayLcd "3. reboot" "   syncbox ?"
+    if gpioButton 3 ; then
+        displayLcd "rebooting ..." ""
+        ledBlink fast
+        log "user request reboot"
+        sudo reboot
+        return
+    fi
+    displayLcd "4. reset wifi" "   and reboot ?"
+    if gpioButton 3 ; then
+        displayLcd "resetting ..." ""
+        ledBlink fast
+        log "user request reset wifi and reboot"
+        deleteAllConnections
+        displayLcd "rebooting ..." ""
+        sudo reboot
+        return
+    fi
+}
+
+function needWifiConnect {
+    buttonWaitTime=${1:-10}
+    # Return status 0 if there is no connection configured (ie no
+    # SSID/password previously stored).  Otherwise displays a msg
+    # and returns the status from gpioButton
+    if ! hasAnyConnections ; then
+        return 0
+    else
+        displayLcd "press button to" "configure wifi ?"
+        gpioButton $buttonWaitTime
+    fi
+}
+
 # ----------- main ----------------
 function main {
     # arg1 is the time to wait for config wifi button
-    # defaults to 1 sec
-    buttonWait=${1:-1}
+    # defaults to 10 secs
+    buttonWait=${1:-10}
     log "startup"
 
     # Waiting several seconds for the button press, 
     # blinking led to draw user attention.
     ledBlink fast
-    displayLcd "press button to" "configure wifi"
-    if gpioButton $buttonWait ; then
+    if needWifiConnect $buttonWait ; then
         log "running wifi-connect"
-        ##nmcli device wifi | while read line ; do log "$line" done
         ledBlink
         displayLcd "wifi-connect at:" "Syncbox:wolfgang"
         sudo wifi-connect --portal-ssid Syncbox \
@@ -296,8 +365,7 @@ function main {
                 displayStatus "${result}" $mode
                 #sleep 6
                 if gpioButton 6 ; then
-                    displayLcd "interupted" "quitting"
-                    exit 1
+                    optionSelect
                 fi              
                 # 30 seconds for a complete cycle
             done
@@ -305,7 +373,9 @@ function main {
             # result ==> error text
             log "error:${result}"
             ledBlink fast
-            sleep 5
+            if gpioButton 6 ; then
+                optionSelect
+            fi              
         fi
     done
 }
@@ -313,12 +383,15 @@ function main {
 # ----------- entry ----------------
 if [[ $1 == "-logfile" ]] ; then
     logfile=${2:-logfile}
-    exec &> $logfile
+    exec &>> $logfile
 fi
 
-main 1
+main
 
-# todo:
-#   button to reboot (multi-press option?)
+#todo: scheduled report email
+# maybe include emailing of log file
+# maybe append to log and option for deleting
+# report to include disk free
+# inhibit repeated error log messages
 
-#exit 0
+
