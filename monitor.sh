@@ -89,7 +89,7 @@ function ledBlink {
 # ----------- lcd ----------------
 function displayLcd {
     # Takes two display strings
-    ~pi/display.py "$1" "$2" &>/dev/null
+    ./display.py "$1" "$2" &>/dev/null
 }
 
 # ----------- button support ----------------
@@ -99,7 +99,7 @@ function gpioButton {
     # Specifying 0, (or nothing) means wait forever for the button press.
     # Returns 0 if the button was pressed, or 1 if timed out waiting.
     waitTimeSecs=${1:-0}
-    log "waiting $waitTimeSecs secs for button press"
+    #log "waiting $waitTimeSecs secs for button press"
 
     buttonPressed=0
     buttonTimedOut=1
@@ -127,8 +127,8 @@ function gpioButton {
 
     wait -n $gpioPid $timerPid
     waitStatus=$?
-    log "button $( if [[ $waitStatus == $buttonPressed ]] ; \
-        then echo 'PRESSED' ; else echo 'NOT pressed' ; fi )"
+    #log "button $( if [[ $waitStatus == $buttonPressed ]] ; \
+    #    then echo 'PRESSED' ; else echo 'NOT pressed' ; fi )"
 
     killProcess ${buttonPid}
     killProcess ${timerPid}
@@ -294,7 +294,11 @@ function main {
             ledBlink slow
             for mode in 0 1 2 3 4 ; do
                 displayStatus "${result}" $mode
-                sleep 6
+                #sleep 6
+                if gpioButton 6 ; then
+                    displayLcd "interupted" "quitting"
+                    exit 1
+                fi              
                 # 30 seconds for a complete cycle
             done
         else
@@ -312,21 +316,9 @@ if [[ $1 == "-logfile" ]] ; then
     exec &> $logfile
 fi
 
-main 10
+main 1
 
 # todo:
-#   mail
 #   button to reboot (multi-press option?)
-# http://www.raspberry-projects.com/pi/software_utilities/email/ssmtp-to-send-emails
-# this ref is about setting up without requiring a password
-# https://blog.dantup.com/2016/04/setting-up-raspberry-pi-raspbian-jessie-to-send-email/
 
-subject=$(curl -H "X-API-Key: GSwL53QQ96gZWJU5DpDTnqzJTzi2bn4K" \
-    'http://127.0.0.1:8384/rest/system/error' 2>/dev/null | \
-    grep '{"errors":null}' >/dev/null && echo ok || echo ERROR)
-
-
-./syncStats.sh | mail -s "Syncbox status: $subject" david.x.weiss@gmail.com
-
-
-exit 0
+#exit 0
