@@ -2,7 +2,7 @@
 
 NAME=monitor
 USER=pi
-WDIR=$(eval echo "~$USER")
+WDIR=$(eval echo "~$USER")/syncbox
 PIDFILE=$WDIR/$NAME.pid
 #This is the command to be run, give the full pathname
 DAEMON=$WDIR/${NAME}.sh

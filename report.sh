@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# usage: "$0 [-email target-email-address]"
-# Generate a report and optionally send to the specified email.
-# or just print the report to stdout.
+# usage: "$0 [-email]"
+# Generate a report and optionally email it.
+# Else just print the report to stdout.
 
 # ----------- file list ----------------
 excludePathList=".fseventsd|.stfolder|.stversions|.Spotlight-V100"
@@ -124,7 +124,7 @@ function generateReport {
 
 # ----------- entry ----------------
 if [[ $1 == "-email" ]] ; then
-    reportTarget="$2"
+    reportTarget="david.x.weiss@gmail.com"
     reportSubject="Syncbox report"
     reportFile="mailStatus.txt"
     
