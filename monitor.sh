@@ -48,19 +48,15 @@ function killProcess {
 # ref: http://wiringpi.com/the-gpio-utility/
 gpio -g mode 10 output
 
-function ledOn {
-    killProcess ${ledPid:-noJob}
-    gpio -g write 10 1
-    ledPid=noJob
-}
+# Prevent uneccesary kill/fork if no change in led.
+ledArg=""
 
-function ledOff {
-    killProcess ${ledPid:-noJob}
-    gpio -g write 10 0
-    ledPid=noJob
-}
+function led {
+    if [[ "$ledArg" == "$1" ]] ; then
+        return
+    fi
 
-function ledBlink {
+    ledArg="$1"
     # Single arg which is speed of the blinking.
     killProcess ${ledPid:-noJob}
     case $1 in
@@ -68,7 +64,18 @@ function ledBlink {
             ;;
         slow)  pause=0.5
             ;;
-        *) pause=0.25
+        normal) pause=0.25
+            ;;
+        on) pause=0
+            gpio -g write 10 1
+            return
+            ;;
+        off) pause=0
+            gpio -g write 10 0
+            return
+            ;;
+        *)
+            return
             ;;
     esac
     (
@@ -85,6 +92,7 @@ function ledBlink {
     ledPid=$!
     #echo "monitor: new ledPid is $ledPid"
 }
+
 
 # ----------- lcd ----------------
 function displayLcd {
@@ -149,7 +157,7 @@ function testGateway {
 function testSyncPing {
     curl -H "X-API-Key: GSwL53QQ96gZWJU5DpDTnqzJTzi2bn4K"  \
         http://127.0.0.1:8384/rest/system/ping 2>/dev/null | \
-        json_pp | grep pong >/dev/null
+        json_pp 2>/dev/null | grep pong >/dev/null
 }
 
 function syncAvailability {
@@ -161,7 +169,7 @@ function syncAvailability {
 
     # 1. Check there is a wifi connection
     if ! testWlan ; then
-        displayLcd "no wifi, maybe" "reboot, config ?"
+        displayLcd "no wifi, maybe" "config needed ?"
         echo "no wifi"
         return 1
     fi
@@ -200,7 +208,8 @@ function getUptime {
 
     # Fetch uptime from syncthing api
     uptimeSecs=$(curl -H "X-API-Key: GSwL53QQ96gZWJU5DpDTnqzJTzi2bn4K"  \
-        http://127.0.0.1:8384/rest/system/status 2>/dev/null | json_pp | \
+        http://127.0.0.1:8384/rest/system/status 2>/dev/null | \
+        json_pp 2>/dev/null | \
         grep uptime | tr -d ':,' | awk '{ print $2 }')
 
     # ref for exprs: http://wiki.bash-hackers.org/start
@@ -223,7 +232,8 @@ function getSyncCpu {
     # Writes to stdout "sync load 23%"
     # Check cpu load. 
     syncCpuTxt=$(curl -H "X-API-Key: GSwL53QQ96gZWJU5DpDTnqzJTzi2bn4K"  \
-        http://127.0.0.1:8384/rest/system/status 2>/dev/null | json_pp | \
+        http://127.0.0.1:8384/rest/system/status 2>/dev/null | \
+        json_pp 2>/dev/null | \
         grep cpuPercent | tr -d ':\",' | awk '{ print $2 }' | cut -c -5)
     echo "sync load ${syncCpuTxt}%"
 }
@@ -262,12 +272,18 @@ function displayStatus {
     esac
 }
 
+echoedText=""
+
 function log {
-    echo "$(date --iso-8601=minutes) $1"
+    # Only echo if the arg is different from the last.
+    if [[ "$echoedText" != "$1" ]] ; then
+        echo "$(date --iso-8601=minutes) $1"
+        echoedText="$1"
+    fi
 }
 
 # ----------- nmcli routines ----------------
-function deleteAllConnections {
+function deleteConnections {
     nmcli --fields NAME con show | awk '{print $1}' | while read name
     do
         if [[ "$name" != "NAME" ]] ; then
@@ -277,63 +293,58 @@ function deleteAllConnections {
     done 
 }
 
-function hasAnyConnections {
-    # Sets a return status 0 if there is any connections, else 1
-    nmcli --fields UUID,NAME con show | grep -v NAME >/dev/null
-}
-
 # ----------- option selection ----------------
-function optionSelect {
-    # Cycle through a list of options, allow user to select one.
-
-    displayLcd "press to select" " 4 options..."
-    sleep 3
-    displayLcd "1. email status" "   report ?"
-    if gpioButton 3 ; then
-        displayLcd "emailing ..." ""
-        ledBlink fast
-        log "user request email report"
-        ./report.sh -email || true
+function pauseForOptionSelect {
+    # Pause for a short while, waiting for the button press.
+    # if none, then return.
+    # Otherwise, step through a list of options, pausing at each
+    # for a short time for the user to click the button.
+    if ! gpioButton 6 ; then
         return
     fi
+
+    led fast
+    displayLcd "press to select" " an option..."
+
+    sleep 3
+    if testGateway ; then
+        displayLcd "1. email status" "   report ?"
+        if gpioButton 3 ; then
+            log "user request email report"
+            displayLcd "emailing ..." ""
+            ./report.sh -email || true
+            return
+        fi
+    fi 
     displayLcd "2. shutdown" "   syncbox ?"
     if gpioButton 3 ; then
-        displayLcd "shutting down..." ""
-        ledBlink fast
         log "user request shutdown"
+        displayLcd "shutting down..." ""
         sudo shutdown now
-        return
+        exit 0
     fi
     displayLcd "3. reboot" "   syncbox ?"
     if gpioButton 3 ; then
-        displayLcd "rebooting ..." ""
-        ledBlink fast
         log "user request reboot"
-        sudo reboot
-        return
-    fi
-    displayLcd "4. reset wifi" "   and reboot ?"
-    if gpioButton 3 ; then
-        displayLcd "resetting ..." ""
-        ledBlink fast
-        log "user request reset wifi and reboot"
-        deleteAllConnections
         displayLcd "rebooting ..." ""
         sudo reboot
+        exit 0
+    fi
+    displayLcd "4. configure" "   wifi ?"
+    if gpioButton 3 ; then
+        log "running wifi-connect"
+        displayLcd "wifi-connect at:" "Syncbox:wolfgang"
+        sudo wifi-connect --portal-ssid Syncbox \
+            --portal-passphrase wolfgang
+        log "connected to $(nmcli -t -f NAME con show)"
         return
     fi
-}
-
-function needWifiConnect {
-    buttonWaitTime=${1:-10}
-    # Return status 0 if there is no connection configured (ie no
-    # SSID/password previously stored).  Otherwise displays a msg
-    # and returns the status from gpioButton
-    if ! hasAnyConnections ; then
-        return 0
-    else
-        displayLcd "press button to" "configure wifi ?"
-        gpioButton $buttonWaitTime
+    displayLcd "5. reset" "   wifi ?"
+    if gpioButton 3 ; then
+        log "user request reset wifi connections"
+        displayLcd "resetting ..." ""
+        deleteConnections
+        return
     fi
 }
 
@@ -343,39 +354,22 @@ function main {
     # defaults to 10 secs
     buttonWait=${1:-10}
     log "startup"
-
-    # Waiting several seconds for the button press, 
-    # blinking led to draw user attention.
-    ledBlink fast
-    if needWifiConnect $buttonWait ; then
-        log "running wifi-connect"
-        ledBlink
-        displayLcd "wifi-connect at:" "Syncbox:wolfgang"
-        sudo wifi-connect --portal-ssid Syncbox \
-            --portal-passphrase wolfgang
-        log "connected to $(nmcli -t -f NAME con show)"
-        ledOff
-    fi
+    led on
 
     while : ; do
         if result="$(syncAvailability)" ; then
             # result ==> myIp
-            ledBlink slow
+            log "ok:${result}"
             for mode in 0 1 2 3 4 ; do
+                led slow
                 displayStatus "${result}" $mode
-                #sleep 6
-                if gpioButton 6 ; then
-                    optionSelect
-                fi              
-                # 30 seconds for a complete cycle
+                pauseForOptionSelect
             done
         else
             # result ==> error text
             log "error:${result}"
-            ledBlink fast
-            if gpioButton 6 ; then
-                optionSelect
-            fi              
+            led fast
+            pauseForOptionSelect
         fi
     done
 }
@@ -389,9 +383,5 @@ fi
 main
 
 #todo: scheduled report email
-# maybe include emailing of log file
-# maybe append to log and option for deleting
-# report to include disk free
-# inhibit repeated error log messages
 
 

@@ -119,7 +119,15 @@ function generateReport {
     cp "$fileListNew" "$fileListOld"
     rm "$fileListNew"
 
+    echo '-------------  -------------'
+    ls -l
+    df -H
+    echo '-------------  -------------'
+
     syncthingReport
+
+    # Concat the last bit of the log file
+    tail -500 monitor.log
 }
 
 # ----------- entry ----------------
