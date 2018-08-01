@@ -62,9 +62,9 @@ function led {
     case $1 in
         fast)  pause=0.125
             ;;
-        slow)  pause=0.5
+        slow)  pause=1.0
             ;;
-        normal) pause=0.25
+        normal) pause=0.5
             ;;
         on) pause=0
             gpio -g write 10 1
@@ -88,11 +88,11 @@ function led {
     ) &
     # inhibit shell printing '[1] terminated ...'
     # ref: https://www.maketecheasier.com/run-bash-commands-background-linux/
+    # https://unix.stackexchange.com/questions/3886/difference-between-nohup-disown-and
     disown
     ledPid=$!
     #echo "monitor: new ledPid is $ledPid"
 }
-
 
 # ----------- lcd ----------------
 function displayLcd {
@@ -107,36 +107,29 @@ function gpioButton {
     # Specifying 0, (or nothing) means wait forever for the button press.
     # Returns 0 if the button was pressed, or 1 if timed out waiting.
     waitTimeSecs=${1:-0}
-    #log "waiting $waitTimeSecs secs for button press"
+    if (( $waitTimeSecs == 0)) ; then
+        waitTimeSecs=10
+    fi
 
-    buttonPressed=0
-    buttonTimedOut=1
+    # pgio27 is the button input
+    gpio -g mode 27 in
+    # tie the input up
+    gpio -g mode 27 up
 
-    (
-        # pgio27 is the button input
-        gpio -g mode 27 in
-        # tie the input up
-        gpio -g mode 27 up
-        # wait indefinitely (in background) for button press (falling edge)
-        gpio -g wfi 27 falling
-        exit $buttonPressed
-    ) &
+    # wait indefinitely (in background) for button press (falling edge)
+    gpio -g wfi 27 falling &
     buttonPid=$!
 
     (
-        if (( $waitTimeSecs > 0)) ; then
-            sleep $waitTimeSecs
-        else
-            sleep
-        fi
-        exit $buttonTimedOut
+        sleep $waitTimeSecs
+        exit 1
     ) &
     timerPid=$!
 
-    wait -n $gpioPid $timerPid
+    wait -n $buttonPid $timerPid
+    # status code 0 (true) indicates that gpio process finished.
+    # status code 1 (false) indicates that sleep process finished.
     waitStatus=$?
-    #log "button $( if [[ $waitStatus == $buttonPressed ]] ; \
-    #    then echo 'PRESSED' ; else echo 'NOT pressed' ; fi )"
 
     killProcess ${buttonPid}
     killProcess ${timerPid}
@@ -350,9 +343,6 @@ function pauseForOptionSelect {
 
 # ----------- main ----------------
 function main {
-    # arg1 is the time to wait for config wifi button
-    # defaults to 10 secs
-    buttonWait=${1:-10}
     log "startup"
     led on
 
