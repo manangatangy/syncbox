@@ -106,6 +106,7 @@ function gpioButton {
     # Takes a single optional arg which is the number of seconds to wait.
     # Specifying 0, (or nothing) means wait forever for the button press.
     # Returns 0 if the button was pressed, or 1 if timed out waiting.
+    # For debugging use: ps -elfT | grep -e gpio -e sleep
     waitTimeSecs=${1:-0}
     if (( $waitTimeSecs == 0)) ; then
         waitTimeSecs=10
