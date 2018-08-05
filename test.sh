@@ -1,16 +1,19 @@
 #!/bin/bash
 
-# On starting ...
+function Onstarting {
 reportSleeper &
 reportPid="$!"
+}
 
-# on Ad-hoc
+function Adhoc {
 killProcess ${reportPid:-noJob}
 reportSleeper "ad-hoc" &
 reportPid="$!"
+}
 
-
-
+function StopReport {
+killProcess ${reportPid:-noJob}
+}
 
 
 
@@ -59,3 +62,54 @@ function sendReport {
     sleep 5    
     ##./report.sh "$reportFile" | mail -s "$reportSubject" "$reportTarget" 
 }
+
+
+
+
+
+function gpioButton {
+    # Waits for a button click, or a timeout.
+    # Takes a single optional arg which is the number of seconds to wait.
+    # Specifying 0, (or nothing) means wait forever for the button press.
+    # Returns 0 if the button was pressed, or 1 if timed out waiting.
+    # For debugging use: ps -elfT | grep -e gpio -e sleep
+    waitTimeSecs=${1:-0}
+    if (( $waitTimeSecs == 0)) ; then
+        waitTimeSecs=10
+    fi
+
+    # pgio27 is the button input
+    gpio -g mode 27 in
+    # tie the input up
+    gpio -g mode 27 up
+
+    # wait indefinitely (in background) for button press (falling edge)
+    gpio -g wfi 27 falling &
+    buttonPid=$!
+
+    (
+        sleep $waitTimeSecs
+        killProcess ${buttonPid}
+    ) &
+    timerPid=$!
+
+    wait $buttonPid
+    # status code 0 (true) indicates that gpio process finished.
+    # other status codes (false) indicates that sleep process
+    # killed the button process.
+    waitStatus=$?
+
+    killProcess ${timerPid}
+    # # Maybe gpio needs more delay between calls?
+    # sleep 1
+    return $waitStatus
+}
+function killProcess {
+    # Single arg which is the pid of job to be killed.
+    # Undefined, empty, or noJob arg means nothing will be killed.
+    #echo "monitor: killing ${1}"
+    if [[ ${1:-noJob} != noJob ]] ; then
+        kill ${1}
+    fi
+}
+
