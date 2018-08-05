@@ -94,55 +94,45 @@ function syncthingReport {
     curl -H "X-API-Key: $key"   \
         'http://127.0.0.1:8384/rest/system/error' 2>/dev/null |   \
         jq '.'
-    echo '-------------  -------------'
 }
 
 # ----------- report generation ----------------
 function generateReport {
+    # $1 - name of file holding previous listFile
 
     # Print a report covering the file-list difference from the
     # last generation, and a series of other syncthing reports.
 
-    fileListOld="report-files.txt"
-    fileListNew="report-files.new"
+    listFile="${1}"
+    listFileNew="${listFile}.tmp"
 
     syncDir="/media/syncdisk"
-
-    listFiles "$syncDir" >"$fileListNew"
-    if test -f "$fileListOld" ; then
-        diff --side-by-side "$fileListOld" "$fileListNew"
+    listFiles "$syncDir" >"$listFileNew"
+    if test -f "$listFile" ; then
+        diff --side-by-side "$listFile" "$listFileNew"
     else
-        cat "$fileListNew"
+        cat "$listFileNew"
     fi
 
     # New stats become existing for subsequent diff/run
-    cp "$fileListNew" "$fileListOld"
-    rm "$fileListNew"
+    rm "$listFile"
+    mv "$listFileNew" "$listFile"
 
-    echo '-------------  -------------'
+    echo '------------- ls -l  -------------'
     ls -l
+    echo '------------- df -H -------------'
     df -H
-    echo '-------------  -------------'
 
     syncthingReport
 
     # Concat the last bit of the log file
+    echo '------------- tail -500 monitor.log -------------'
     tail -500 monitor.log
 }
-
-# ----------- entry ----------------
-if [[ $1 == "-email" ]] ; then
-    reportTarget="david.x.weiss@gmail.com"
-    reportSubject="Syncbox report"
-    reportFile="mailStatus.txt"
-    
-    generateReport | mail -s "$reportSubject" "$reportTarget" 
-else
-    generateReport
-fi
-
 
 # http://www.raspberry-projects.com/pi/software_utilities/email/ssmtp-to-send-emails
 # this ref is about setting up without requiring a password
 # https://blog.dantup.com/2016/04/setting-up-raspberry-pi-raspbian-jessie-to-send-email/
+
+generateReport "${1:-listFile}"
 
