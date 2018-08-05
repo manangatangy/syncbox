@@ -115,8 +115,8 @@ function generateReport {
     fi
 
     # New stats become existing for subsequent diff/run
-    rm "$listFile"
-    mv "$listFileNew" "$listFile"
+    cp "$listFileNew" "$listFile"
+    rm "$listFileNew" 2>/dev/null
 
     echo '------------- ls -l  -------------'
     ls -l
@@ -134,5 +134,5 @@ function generateReport {
 # this ref is about setting up without requiring a password
 # https://blog.dantup.com/2016/04/setting-up-raspberry-pi-raspbian-jessie-to-send-email/
 
-generateReport "${1:-listFile}"
+generateReport "${1}"
 

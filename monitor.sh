@@ -45,6 +45,7 @@ function killProcess {
     if [[ ${1:-noJob} != noJob ]] ; then
         kill ${1}
         # kill ${1} >/dev/null 2>&1
+
     fi
 }
 
@@ -363,7 +364,7 @@ function pauseForOptionSelect {
 
 reportTarget="david.x.weiss@gmail.com"
 reportFile="report.txt"
-reportInterval="+10 seconds"
+reportInterval="+6 hours"
 
 function reportSleeper {
     if [[ "${1}" == "ad-hoc" ]] ; then
@@ -374,26 +375,25 @@ function reportSleeper {
         # next report is due (use now time if there is no reportFile).
         if test -f "$reportFile" ; then
             lastReportDate=$(ls -l --time-style=full-iso "$reportFile" | awk '{ print $6, $7, $8 }')
-            echo "reportProcess($BASHPID), last report on: $lastReportDate"
+            log "reportProcess($BASHPID), last report on: $lastReportDate"
         else
-            lastReportDate=$(date)
-            echo "reportProcess($BASHPID), $reportFile not found"
+            lastReportDate=$(date --rfc-3339=seconds)
+            log "reportProcess($BASHPID), $reportFile not found"
         fi
     fi
 
     while : ; do
         # Use lastReportDate to determine how long to sleep for
-        echo "reportProcess($BASHPID), interval $reportInterval"
-        nextReportDate=$(date -d "$lastReportDate $reportInterval")
+        log "reportProcess($BASHPID), interval $reportInterval"
+        nextReportDate=$(date -d "$lastReportDate $reportInterval" --rfc-3339=seconds)
         nextReportDateSecs=$(date -d "$nextReportDate" "+%s")
-        echo "reportProcess($BASHPID), next report on: $nextReportDate"
+        log "reportProcess($BASHPID), next report on: $nextReportDate"
         nowSecs=$(date "+%s")
         secs="$(( $nextReportDateSecs - $nowSecs ))"
-        echo "reportProcess($BASHPID), sleeping for $secs secs"
+        log "reportProcess($BASHPID), sleeping for $secs secs"
         sleep "$secs"
-        echo "reportProcess($BASHPID), sending report..."
         sendReport "scheduled"
-        lastReportDate=$(date)
+        lastReportDate=$(date --rfc-3339=seconds)
     done
 
 }
@@ -401,13 +401,13 @@ function reportSleeper {
 function sendReport {
     # Called with subject sub-field.
     reportSubject="Syncbox $1 report"
-    sleep 60    
-    ##./report.sh "$reportFile" | mail -s "$reportSubject" "$reportTarget" 
+    log "sendReport($BASHPID), sending $1..."
+    ./report.sh "$reportFile" | mail -s "$reportSubject" "$reportTarget" 
 }
 
 # ----------- main ----------------
 function main {
-    log "startup"
+    log "startup($BASHPID)"
     led on
 
     reportSleeper &
@@ -416,7 +416,7 @@ function main {
     while : ; do
         if result="$(syncAvailability)" ; then
             # result ==> myIp
-            log "ok:${result}"
+            log "ok($BASHPID):${result}"
             for mode in 0 1 2 3 4 ; do
                 led slow
                 displayStatus "${result}" $mode
@@ -424,7 +424,7 @@ function main {
             done
         else
             # result ==> error text
-            log "error:${result}"
+            log "error($BASHPID):${result}"
             led fast
             pauseForOptionSelect
         fi
@@ -438,3 +438,12 @@ if [[ $1 == "-logfile" ]] ; then
 fi
 
 main
+
+# refs
+# https://stackoverflow.com/questions/46752794/why-does-wait-generate-pid-is-not-a-child-of-this-shell-error-if-a-pipe-is-u?rq=1
+# https://stackoverflow.com/questions/25995606/howto-debug-running-bash-script
+# https://stackoverflow.com/questions/4640794/a-running-bash-script-is-hung-somewhere-can-i-find-out-what-line-it-is-on
+# https://unix.stackexchange.com/questions/92419/wait-command-usage-in-linux
+# https://stackoverflow.com/questions/1058047/wait-for-any-process-to-finish
+# 
+# 
