@@ -105,7 +105,7 @@ function displayLcd {
 }
 
 # ----------- button support ----------------
-function gpioButton {
+function buttonSleep {
     # Waits for a button click, or a timeout.
     # Takes a single optional arg which is the number of seconds to wait.
     # Specifying 0, (or nothing) means wait forever for the button press.
@@ -131,7 +131,7 @@ function gpioButton {
     ) &
     timerPid=$!
 
-    wait -n $buttonPid $timerPid
+    wait $buttonPid
     # status code 0 (true) indicates that gpio process finished.
     # other status codes (false) indicates that sleep process
     # killed the button process.
@@ -299,7 +299,7 @@ function pauseForOptionSelect {
     # if none, then return.
     # Otherwise, step through a list of options, pausing at each
     # for a short time for the user to click the button.
-    if ! gpioButton 5 ; then
+    if ! buttonSleep 5 ; then
         return
     fi
 
@@ -309,7 +309,7 @@ function pauseForOptionSelect {
     sleep 3
     if testGateway ; then
         displayLcd "1. email status" "   report ?"
-        if gpioButton 3 ; then
+        if buttonSleep 3 ; then
             log "user request email report"
             displayLcd "emailing ..." ""
             killProcess ${reportPid:-noJob}
@@ -319,21 +319,21 @@ function pauseForOptionSelect {
         fi
     fi 
     displayLcd "2. shutdown" "   syncbox ?"
-    if gpioButton 3 ; then
+    if buttonSleep 3 ; then
         log "user request shutdown"
         displayLcd "shutting down..." ""
         sudo shutdown now
         exit 0
     fi
     displayLcd "3. reboot" "   syncbox ?"
-    if gpioButton 3 ; then
+    if buttonSleep 3 ; then
         log "user request reboot"
         displayLcd "rebooting ..." ""
         sudo reboot
         exit 0
     fi
     displayLcd "4. configure" "   wifi ?"
-    if gpioButton 3 ; then
+    if buttonSleep 3 ; then
         log "running wifi-connect"
         displayLcd "wifi-connect at:" "Syncbox:wolfgang"
         sudo wifi-connect --portal-ssid Syncbox \
@@ -342,7 +342,7 @@ function pauseForOptionSelect {
         return
     fi
     displayLcd "5. reset" "   wifi ?"
-    if gpioButton 3 ; then
+    if buttonSleep 3 ; then
         log "user request reset wifi connections"
         displayLcd "resetting ..." ""
         deleteConnections
