@@ -4,6 +4,9 @@
 trap "onTerm" INT TERM ERR
 trap "onExit" EXIT
 
+trap "set -x" SIGUSR1
+trap "set +x" SIGUSR2
+
 function onExit {
     exitArgument=$?
     log "onExit exitArgument=$exitArgument"
@@ -134,6 +137,8 @@ function gpioButton {
 
     killProcess ${buttonPid}
     killProcess ${timerPid}
+    # Maybe gpio needs more delay between calls?
+    sleep 1
     return $waitStatus
 }
 
@@ -293,7 +298,7 @@ function pauseForOptionSelect {
     # if none, then return.
     # Otherwise, step through a list of options, pausing at each
     # for a short time for the user to click the button.
-    if ! gpioButton 6 ; then
+    if ! gpioButton 5 ; then
         return
     fi
 
@@ -341,6 +346,8 @@ function pauseForOptionSelect {
         return
     fi
 }
+
+# ----------- reporting ----------------
 
 # ----------- main ----------------
 function main {
