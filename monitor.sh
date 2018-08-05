@@ -43,7 +43,8 @@ function killProcess {
     # Undefined, empty, or noJob arg means nothing will be killed.
     #echo "monitor: killing ${1}"
     if [[ ${1:-noJob} != noJob ]] ; then
-        kill ${1} >/dev/null 2>&1
+        kill ${1}
+        # kill ${1} >/dev/null 2>&1
     fi
 }
 
@@ -126,19 +127,19 @@ function gpioButton {
 
     (
         sleep $waitTimeSecs
-        exit 1
+        killProcess ${buttonPid}
     ) &
     timerPid=$!
 
     wait -n $buttonPid $timerPid
     # status code 0 (true) indicates that gpio process finished.
-    # status code 1 (false) indicates that sleep process finished.
+    # other status codes (false) indicates that sleep process
+    # killed the button process.
     waitStatus=$?
 
-    killProcess ${buttonPid}
     killProcess ${timerPid}
-    # Maybe gpio needs more delay between calls?
-    sleep 1
+    # # Maybe gpio needs more delay between calls?
+    # sleep 1
     return $waitStatus
 }
 
@@ -311,7 +312,9 @@ function pauseForOptionSelect {
         if gpioButton 3 ; then
             log "user request email report"
             displayLcd "emailing ..." ""
-            ./report.sh -email || true
+            killProcess ${reportPid:-noJob}
+            reportSleeper "ad-hoc" &
+            reportPid="$!"
             return
         fi
     fi 
@@ -349,10 +352,66 @@ function pauseForOptionSelect {
 
 # ----------- reporting ----------------
 
+# On startup
+# reportSleeper &
+# reportPid="$!"
+
+# To do and ad-hoc report
+# killProcess ${reportPid:-noJob}
+# reportSleeper "ad-hoc" &
+# reportPid="$!"
+
+reportTarget="david.x.weiss@gmail.com"
+reportFile="report.txt"
+reportInterval="+10 seconds"
+
+function reportSleeper {
+    if [[ "${1}" == "ad-hoc" ]] ; then
+        sendReport "ad-hoc"
+        lastReportDate=$(date)
+    else
+        # Use the timestamp of the reportFile to determine when the
+        # next report is due (use now time if there is no reportFile).
+        if test -f "$reportFile" ; then
+            lastReportDate=$(ls -l --time-style=full-iso "$reportFile" | awk '{ print $6, $7, $8 }')
+            echo "reportProcess($BASHPID), last report on: $lastReportDate"
+        else
+            lastReportDate=$(date)
+            echo "reportProcess($BASHPID), $reportFile not found"
+        fi
+    fi
+
+    while : ; do
+        # Use lastReportDate to determine how long to sleep for
+        echo "reportProcess($BASHPID), interval $reportInterval"
+        nextReportDate=$(date -d "$lastReportDate $reportInterval")
+        nextReportDateSecs=$(date -d "$nextReportDate" "+%s")
+        echo "reportProcess($BASHPID), next report on: $nextReportDate"
+        nowSecs=$(date "+%s")
+        secs="$(( $nextReportDateSecs - $nowSecs ))"
+        echo "reportProcess($BASHPID), sleeping for $secs secs"
+        sleep "$secs"
+        echo "reportProcess($BASHPID), sending report..."
+        sendReport "scheduled"
+        lastReportDate=$(date)
+    done
+
+}
+
+function sendReport {
+    # Called with subject sub-field.
+    reportSubject="Syncbox $1 report"
+    sleep 60    
+    ##./report.sh "$reportFile" | mail -s "$reportSubject" "$reportTarget" 
+}
+
 # ----------- main ----------------
 function main {
     log "startup"
     led on
+
+    reportSleeper &
+    reportPid="$!"
 
     while : ; do
         if result="$(syncAvailability)" ; then
@@ -379,7 +438,3 @@ if [[ $1 == "-logfile" ]] ; then
 fi
 
 main
-
-#todo: scheduled report email
-
-
