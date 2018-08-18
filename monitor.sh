@@ -1,11 +1,14 @@
 #!/bin/bash
 
+# ----------- debug support routines ----------------
+# ref: http://wiki.bash-hackers.org/scripting/debuggingtips
+trap "set -x" SIGUSR1
+trap "set +x" SIGUSR2
+export PS4='+(${BASH_SOURCE}:${LINENO}): ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+
 # ----------- trap related routines ----------------
 trap "onTerm" INT TERM ERR
 trap "onExit" EXIT
-
-trap "set -x" SIGUSR1
-trap "set +x" SIGUSR2
 
 function onExit {
     exitArgument=$?
@@ -57,6 +60,11 @@ gpio -g mode 10 output
 ledArg=""
 
 function led {
+
+# # Temp disable led
+# Commenting this caused the lockup to take longer than before
+# return
+
     if [[ "$ledArg" == "$1" ]] ; then
         return
     fi
@@ -205,7 +213,11 @@ function getIp {
 function getUptime {
     # Writes to stdout "uptime 234 days"
     # Fetch the pid, sedding out the 2nd grep (which is on grep command itself)
-    syncPid=$(ps -ef | grep syncthing | sed -n '1p' | awk '{ print $2 }')
+    ##syncPid=$(ps -ef | grep syncthing | sed -n '1p' | awk '{ print $2 }')
+    # There was a failure (with cpu of around 70%) that traced to here
+    # with the shell starting ps, grep, sed, and awk and then no more
+    # traceouts.  This pipeline had got stuck - don't know how.
+    # Will try again with this command commented out - syncPid not used anyway.
 
     # Fetch uptime from syncthing api
     uptimeSecs=$(curl -H "X-API-Key: GSwL53QQ96gZWJU5DpDTnqzJTzi2bn4K"  \
