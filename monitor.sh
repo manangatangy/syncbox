@@ -61,10 +61,6 @@ ledArg=""
 
 function led {
 
-# # Temp disable led
-# Commenting this caused the lockup to take longer than before
-# return
-
     if [[ "$ledArg" == "$1" ]] ; then
         return
     fi
@@ -369,7 +365,7 @@ function pauseForOptionSelect {
 # reportSleeper &
 # reportPid="$!"
 
-# To do and ad-hoc report
+# To do an ad-hoc report
 # killProcess ${reportPid:-noJob}
 # reportSleeper "ad-hoc" &
 # reportPid="$!"
@@ -403,6 +399,13 @@ function reportSleeper {
         nowSecs=$(date "+%s")
         secs="$(( $nextReportDateSecs - $nowSecs ))"
         log "reportProcess($BASHPID), sleeping for $secs secs"
+        # Secs will be negative if the reportFile is older than reportInterval
+        # In this case, just perform an immediate (more or less) report.
+        if (( $secs <= 0 )) ; then
+            secs="7"
+            log "reportProcess($BASHPID), last report is older than $reportInterval"
+            log "reportProcess($BASHPID), performing immediate report"
+        fi
         sleep "$secs"
         sendReport "scheduled"
         lastReportDate=$(date --rfc-3339=seconds)
