@@ -48,7 +48,6 @@ function killProcess {
     if [[ ${1:-noJob} != noJob ]] ; then
         kill ${1}
         # kill ${1} >/dev/null 2>&1
-
     fi
 }
 
@@ -359,52 +358,6 @@ function pauseForOptionSelect {
     fi
 }
 
-# ----------- self checking ----------------
-# After a day or so, the script main thread gets stuck in a system
-# command; usually ps.  At this point the trace stops and the cpu
-# for the main process hits over 70% up to 90ish.  The led keeps
-# flashing, and the report keeps generating, but the LCD display
-# loop is blocked.  The process table is not full and there is only
-# one or two zombies, plenty of disk memory etc.  My best guess is
-# that making new processes (and killing them) at the rate of one 
-# every few seconds, eventually upsets linux. But I have no idea why.
-# For now, I'll just detect this state and reboot when it occurs.
-
-function monitorChecker {
-    
-    # killmeChecker &
-
-    while : ; do
-        load=$(top -b -n2 | grep monitor | \
-          awk '{sum+=$9} END { if (sum >= 60) print "PS-NBG" ; else print "PS-OK" }')
-        log "monitorChecker($BASHPID): $load"
-        if [[ "$load" == "PS-NBG" ]] ; then     
-            log "monitorChecker($BASHPID): rebooting"
-            sudo reboot
-            exit 0
-        fi
-        # Once every 30 minutes is enough
-        checkWait=1800
-        log "monitorChecker($BASHPID): next check in $checkWait secs"
-        sleep $checkWait
-    done
-}
-
-# function killmeChecker {
-#     while : ; do
-#         count=$(ps -ef | grep killnow | wc -l)
-#         log "killmeChecker($BASHPID): $count"
-#         if (( $count >= 2 )) ; then     
-#             log "killmeChecker($BASHPID): rebooting"
-#             sudo reboot
-#             exit 0
-#         fi
-#         checkWait=30
-#         log "killmeChecker($BASHPID): next check in $checkWait secs"
-#         sleep $checkWait
-#     done
-# }
-
 # ----------- reporting ----------------
 
 # On startup
@@ -469,10 +422,6 @@ function sendReport {
 # ----------- main ----------------
 function main {
     log "startup($BASHPID)"
-
-    monitorChecker &
-    monitorCheckerPid="$!"
-    log "monitorChecker process is $monitorCheckerPid"
 
     reportSleeper &
     reportSleeperPid="$!"
