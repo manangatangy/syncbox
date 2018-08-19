@@ -29,23 +29,23 @@ function restart {
     ./runMonitor.sh start
 }
 
-function overloadChecker {
-    # This is a debug facility that uses a similar method to 
-    # check for a manual "overload" and restart the monitor.
-    # Run the overload.sh script to trigger this.
-    while : ; do
-        count=$(ps -ef | grep overload | wc -l)
-        log "checker($BASHPID): $count"
-        if (( $count >= 2 )) ; then     
-            restart  
-        fi
-        checkWait=30
-        log "checker($BASHPID): next overload check in $checkWait secs"
-        sleep $checkWait
-    done
-}
+# function overloadChecker {
+#     # This is a debug facility that uses a similar method to 
+#     # check for a manual "overload" and restart the monitor.
+#     # Run the overload.sh script to trigger this.
+#     while : ; do
+#         count=$(ps -ef | grep overload | wc -l)
+#         log "checker($BASHPID): $count"
+#         if (( $count >= 2 )) ; then     
+#             restart  
+#         fi
+#         checkWait=30
+#         log "checker($BASHPID): next overload check in $checkWait secs"
+#         sleep $checkWait
+#     done
+# }
 
-overloadChecker &
+# overloadChecker &
 
 while : ; do
     load=$(top -b -n2 | grep monitor | \
