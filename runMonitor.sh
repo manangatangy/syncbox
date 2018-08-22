@@ -57,6 +57,7 @@ case "$1" in
         echo "$NAME status is unknown"
         ;;
     esac
+    exit $status
     ;;
   *)
     echo "Usage: "$1" {start|stop|status}"

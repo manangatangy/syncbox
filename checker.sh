@@ -25,8 +25,17 @@ function log {
 function restart {
     log "checker($BASHPID): stopping monitor"
     ./runMonitor.sh stop
-    log "checker($BASHPID): starting monitor"
-    ./runMonitor.sh start
+
+    while : ; do
+        if ./runMonitor.sh status ; then
+            log "checker($BASHPID): monitor still running..."
+            sleep 60
+        else
+            log "checker($BASHPID): starting monitor"
+            ./runMonitor.sh start
+            return
+        fi
+    done
 }
 
 # function overloadChecker {
