@@ -410,6 +410,9 @@ function sendReport {
 function main {
     log "startup($BASHPID)"
 
+    # pause before printing to allow mail etc to get going after reboot
+    sleep 120
+
     reportSleeper STARTUP &
     reportSleeperPid="$!"
     log "reportSleeper process is $reportSleeperPid"
