@@ -375,7 +375,7 @@ reportInterval="+1 day"
 function reportSleeper {
     label="${1}"
     sendReport "${label}"
-    lastReportDate=$(date)
+    lastReportDate=$(date --rfc-3339=seconds)
 
     while : ; do
         log "reportProcess($BASHPID), interval $reportInterval"
