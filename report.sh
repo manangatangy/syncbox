@@ -7,6 +7,7 @@
 # ----------- file list ----------------
 excludePathList=".fseventsd|.stfolder|.stversions|.Spotlight-V100"
 
+# --NOT USED--
 function visitDirs {
     thisDir=$1
     thisBaseDir=$(basename "$thisDir")
@@ -44,6 +45,7 @@ function visitDirs {
     done
 }
 
+# --NOT USED--
 function listFiles {
     # Starting at the specified path, print the path and then list each
     # file in the path.  Then visit child subdirs (except those which 
@@ -83,10 +85,10 @@ function syncthingReport {
                 http://127.0.0.1:8384/rest/db/status?folder=$folderId 2>/dev/null | \
                 jq '.'
 
-            echo '------------- stats folder -------------'
-            curl -H "X-API-Key: $key"   \
-                'http://127.0.0.1:8384/rest/stats/folder' 2>/dev/null |   \
-                jq ". | {\"${folderId}\": .\"${folderId}\"}"
+            # echo '------------- stats folder -------------'
+            # curl -H "X-API-Key: $key"   \
+            #     'http://127.0.0.1:8384/rest/stats/folder' 2>/dev/null |   \
+            #     jq ". | {\"${folderId}\": .\"${folderId}\"}"
         fi
     done
 
@@ -103,31 +105,40 @@ function generateReport {
     # Print a report covering the file-list difference from the
     # last generation, and a series of other syncthing reports.
 
-    listFile="${1}"
-    listFileNew="${listFile}.tmp"
+    # listFile="${1}"
+    # listFileNew="${listFile}.tmp"
 
-    syncDir="/media/syncdisk"
-    listFiles "$syncDir" >"$listFileNew"
-    if test -f "$listFile" ; then
-        diff --side-by-side "$listFile" "$listFileNew"
-    else
-        cat "$listFileNew"
-    fi
+    # syncDir="/media/syncdisk"
+    # listFiles "$syncDir" >"$listFileNew"
+    # if test -f "$listFile" ; then
+        # diff --side-by-side "$listFile" "$listFileNew"
+    # else
+        # cat "$listFileNew"
+    # fi
 
     # New stats become existing for subsequent diff/run
-    cp "$listFileNew" "$listFile"
-    rm "$listFileNew" 2>/dev/null
+    # cp "$listFileNew" "$listFile"
+    # rm "$listFileNew" 2>/dev/null
 
-    echo '------------- ls -l  -------------'
-    ls -l
-    echo '------------- df -H -------------'
-    df -H
+    # echo '------------- ls -l  -------------'
+    # ls -l
+
+    echo '------------- AcerPC-Sync-Status-Report -------------'
+    acerReport="/media/syncdisk/backups/Documents/AcerPC-Sync-Status-Report.txt"
+    if test -f "$acerReport" ; then
+        cat "$acerReport"
+    else
+        echo "NOT FOUND: $acerReport"
+    fi
 
     syncthingReport
 
+    echo '------------- df -H -------------'
+    df -H
+
     # Concat the last bit of the log file
-    echo '------------- tail -500 monitor.log -------------'
-    tail -500 monitor.log
+    # echo '------------- tail -500 monitor.log -------------'
+    # tail -500 monitor.log
 }
 
 # http://www.raspberry-projects.com/pi/software_utilities/email/ssmtp-to-send-emails
