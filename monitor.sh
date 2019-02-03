@@ -321,7 +321,7 @@ function pauseForOptionSelect {
             log "user request email report"
             displayLcd "emailing ..." ""
             killProcess ${reportSleeperPid:-noJob}
-            reportSleeper "ad-hoc" &
+            reportSleeper ADHOC &
             reportSleeperPid="$!"
             return
         fi
@@ -370,27 +370,14 @@ function pauseForOptionSelect {
 # reportSleeperPid="$!"
 
 reportTarget="david.x.weiss@gmail.com"
-reportFile="report.txt"
 reportInterval="+1 day"
 
 function reportSleeper {
-    if [[ "${1}" == "ad-hoc" ]] ; then
-        sendReport "ad-hoc"
-        lastReportDate=$(date)
-    else
-        # Use the timestamp of the reportFile to determine when the
-        # next report is due (use now time if there is no reportFile).
-        if test -f "$reportFile" ; then
-            lastReportDate=$(ls -l --time-style=full-iso "$reportFile" | awk '{ print $6, $7, $8 }')
-            log "reportProcess($BASHPID), last report on: $lastReportDate"
-        else
-            lastReportDate=$(date --rfc-3339=seconds)
-            log "reportProcess($BASHPID), $reportFile not found"
-        fi
-    fi
+    label="${1}"
+    sendReport "${label}"
+    lastReportDate=$(date)
 
     while : ; do
-        # Use lastReportDate to determine how long to sleep for
         log "reportProcess($BASHPID), interval $reportInterval"
         nextReportDate=$(date -d "$lastReportDate $reportInterval" --rfc-3339=seconds)
         nextReportDateSecs=$(date -d "$nextReportDate" "+%s")
@@ -406,7 +393,7 @@ function reportSleeper {
             log "reportProcess($BASHPID), performing immediate report"
         fi
         sleep "$secs"
-        sendReport "scheduled"
+        sendReport SCHEDULED
         lastReportDate=$(date --rfc-3339=seconds)
     done
 
@@ -416,14 +403,14 @@ function sendReport {
     # Called with subject sub-field.
     reportSubject="Syncbox $1 report"
     log "sendReport($BASHPID), sending $1..."
-    ./report.sh "$reportFile" | mail -s "$reportSubject" "$reportTarget" 
+    ./report.sh | mail -s "$reportSubject" "$reportTarget" 
 }
 
 # ----------- main ----------------
 function main {
     log "startup($BASHPID)"
 
-    reportSleeper &
+    reportSleeper STARTUP &
     reportSleeperPid="$!"
     log "reportSleeper process is $reportSleeperPid"
 
