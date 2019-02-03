@@ -371,7 +371,7 @@ function pauseForOptionSelect {
 
 reportTarget="david.x.weiss@gmail.com"
 reportFile="report.txt"
-reportInterval="+6 hours"
+reportInterval="+1 day"
 
 function reportSleeper {
     if [[ "${1}" == "ad-hoc" ]] ; then
