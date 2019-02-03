@@ -63,8 +63,8 @@ while : ; do
     if [[ "$load" == "PS-NBG" ]] ; then
         restart  
     fi
-    # Once every 30 minutes is enough
-    checkWait=1800
+    # Once every half day is enough
+    checkWait=43200
     log "checker($BASHPID): next monitor check in $checkWait secs"
     sleep $checkWait
 done
