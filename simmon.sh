@@ -33,12 +33,12 @@ function displayLcd {
     ./display.py "$1" "$2" >/dev/null 2>&1
 }
 
-# ----------- flashSleepIsButtonDown ----------------
+# ----------- pauseAndDisplayIsButtonDown ----------------
 # Loop up to [sec] times, each time around; displaying the two lines,
 # appending [secs-remaining] to the second line, and toggling the led.
 # On each loop check and return true if the button's down.
 # Return false once the loop finishes.
-function flashSleepIsButtonDown {
+function pauseAndDisplayIsButtonDown {
     secs="$1"
     text1="$2"
     text2="$3"
@@ -46,7 +46,7 @@ function flashSleepIsButtonDown {
         if (( $secs <= 0 )) ; then
             return 1
         fi
-        displayLcd "$text1" "$text2 [$secs]"
+        displayLcd "$text1" "$text2[$secs]"
         toggleLed
         sleep 1
         if isButtonDown ; then
@@ -145,7 +145,7 @@ function confirmIfShutDownRequested {
     # acknowledged, and they will hopefully release the button.  Then
     # display and ask for confirmation.
     flashQuickly 40 "pausing...  "  " "
-    if flashSleepIsButtonDown 5 "press again to" "shut down    " ; then
+    if pauseAndDisplayIsButtonDown 5 "press again to" "shut down    " ; then
         echo "log: user requested shutdown"
         flashQuickly 30 "shutting down...  "  " "
         #### TODO exec sudo shutdown now
@@ -206,19 +206,19 @@ function mainFunction {
         if [[ "$syncAvailability" == "nbg" ]] ; then
             # Display the error for 5 secs, checking for button-press-shutdown-request
             echo "log: error: $line1 $line2"
-            if flashSleepIsButtonDown 5 "$line1" "$line2" ; then
+            if pauseAndDisplayIsButtonDown 5 "$line1" "$line2" ; then
                 confirmIfShutDownRequested
             fi
         else
             myIp="$(getIp)"
             echo "log: connected, ip=$myIp"
-            if flashSleepIsButtonDown 5 "$(date '+%R %F')" "$myIp " ; then
+            if pauseAndDisplayIsButtonDown 5 "$(date '+%R %F')" "$myIp " ; then
                 confirmIfShutDownRequested
             fi
-            if flashSleepIsButtonDown 5 "$(getUptime)" "$myIp " ; then
+            if pauseAndDisplayIsButtonDown 5 "$(getUptime)" "$myIp " ; then
                 confirmIfShutDownRequested
             fi
-            if flashSleepIsButtonDown 5 "$(getSyncCpu)" "$myIp " ; then
+            if pauseAndDisplayIsButtonDown 5 "$(getSyncCpu)" "$myIp " ; then
                 confirmIfShutDownRequested
             fi
         fi
