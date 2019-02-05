@@ -56,6 +56,22 @@ function flashSleepIsButtonDown {
     done
 }
 
+function flashQuickly {
+    # each count is 0.1 of a second
+    count="$1"
+    text1="$2"
+    text2="$3"
+    displayLcd "$text1" "$text2"
+    while : ; do
+        if (( count <= 0 )) ; then
+            return
+        fi
+        toggleLed
+        sleep 0.1
+        count="$(( $count - 1 ))"
+    done
+}
+
 # ----------- availability check routines (return true/false) ----------------
 function testWlan {
     # An alternative is iwconfig 2>&1 | grep wlan0 | grep ESSID
@@ -121,6 +137,21 @@ function getSyncCpu {
     echo "sync load ${syncCpuTxt}%"
 }
 
+function confirmIfShutDownRequested {
+    # This will typically be called directly after isButtonDown has
+    # returned true, so if we immediately check again for button down,
+    # it will probably quickly return true.  Therefore, pause for a few
+    # seconds and clear the lcd so the user knows his first press has been
+    # acknowledged, and they will hopefully release the button.  Then
+    # display and ask for confirmation.
+    flashQuickly 40 "pausing...  "  " "
+    if flashSleepIsButtonDown 5 "press again" "to shut down " ; then
+        echo "log: user requested shutdown"
+        flashQuickly 30 "shutting down...  "  " "
+        #### TODO exec sudo shutdown now
+    fi
+}
+
 # ----------- main ----------------
 
 # flashSleepButtonCheck 5 'starting syncbox...' ''
@@ -138,59 +169,59 @@ function getSyncCpu {
 # loop-forever
 #     check syncAvailability, if bad then
 #         flashSleepButtonCheck 5 error-message-line-1 error-message-line-2
-#         checkIfShutDownRequested
+#         confirmIfShutDownRequested
 #     else
-#         flashSleepButtonCheck 3 info-1-line-1 info-1-line-2
-#         checkIfShutDownRequested
-#         flashSleepButtonCheck 3 info-2-line-1 info-2-line-2
-#         checkIfShutDownRequested
-#         flashSleepButtonCheck 3 info-3-line-1 info-3-line-2
-#         checkIfShutDownRequested
+#
 #     fi
 # end-forever
 #
-# function checkIfShutDownRequested
-#     if button-pressed
-#         flashSleepButtonCheck 5 'press again' 'to shut down?'
-#         if button-pressed
-#             display 'shutting down...'
-#             exec sudo shutdown now
-#         fi
-#     fi
-# end-function
+
+function mainFunction {
+
+    while : ; do
 
 
-function syncAvailability {
-    # Checks for availability and if all good, then writes
-    # ip-address to stdout and sets return status 0.
-    # Otherwise writes an error message to stdout:
-    # "no wifi", "no gateway", or "no ping from syncthing",
-    # displays an an error message on the LCD, set return status 1.
 
-    # 1. Check there is a wifi connection
-    if ! testWlan ; then
-        displayLcd "no wifi, maybe" "config needed ?"
-        echo "no wifi"
-        return 1
-    fi
-
-    # 2. Fetch gateway ip address and check connectivity to gateway
-    if ! testGateway ; then
-        displayLcd "no net gateway" "connectivity"
-        echo "no gateway"
-        return 1
-    fi
-
-    myIp="$(getIp)"
-
-    # 3. Ping the syncthing api
-    if ! testSyncPing ; then
-        displayLcd "${myIp}" "syncthing dead?"
-        echo "no ping from syncthing"
-        return 1
-    fi
-
-    echo "${myIp}"
-    return 0
+        syncAvailability="nbg"
+        # 1. Check there is a wifi connection
+        if ! testWlan ; then
+            line1="no wifi"
+            line2="connection   "
+        else
+            # 2. Fetch gateway ip address and check connectivity to gateway
+            if ! testGateway ; then
+                line1="no gateway"
+                line2="connectivity "
+            else
+                # 3. Ping the syncthing api
+                if ! testSyncPing ; then
+                    line1="no ping from"
+                    line2="syncthing    "
+                else
+                    # All tests are ok
+                    syncAvailability="ok"
+                fi
+            fi
+        fi
+        if [[ "$syncAvailability" == "nbg" ]] ; then
+            # Display the error for 5 secs, checking for button-press-shutdown-request
+            echo "log: error: $line1 $line2"
+            if flashSleepIsButtonDown 5 "$line1" "$line2" ; then
+                confirmIfShutDownRequested
+            fi
+        else
+            myIp="$(getIp)"
+            echo "log: connected, ip=$myIp"
+            if flashSleepIsButtonDown 5 "$(date '+%R %F')" "$myIp   " ; then
+                confirmIfShutDownRequested
+            fi
+            if flashSleepIsButtonDown 5 "$(getUptime)" "$myIp   " ; then
+                confirmIfShutDownRequested
+            fi
+            if flashSleepIsButtonDown 5 "$(getSyncCpu)" "$myIp   " ; then
+                confirmIfShutDownRequested
+            fi
+        fi
+    done
 }
 
