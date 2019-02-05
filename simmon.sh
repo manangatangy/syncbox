@@ -2,6 +2,52 @@
 
 # Simplified monitor
 
+# ----------- trap related routines ----------------
+trap "onTerm" INT TERM ERR
+trap "onExit" EXIT
+
+function onExit {
+    exitArgument=$?
+    log "onExit exitArgument=$exitArgument"
+    # this causes a trap to onTerm, passing the exit arg
+    # via exitArgument channel
+    kill 0
+}
+
+function onTerm {
+    termArgument=$?
+    if [[ "$termArgument" != "0" ]] ; then
+        # upon ctrl-C, a non-zero result value (130) occurs.
+        # use this as the parameter to onExit.  Note that this
+        # invocation of onTerm is the second last, and there
+        # must be another final invocation, resulting from
+        # onExit calling kill.
+        exitArgument=$termArgument
+        log "onTerm setting exitArgument=$exitArgument"
+    else
+        # This is the final invocation of onTerm, and the
+        # call from here to exit will return to the shell
+        # Put your final clean up here.
+        # ...
+        log "onTerm exiting with $exitArgument"
+    fi
+    # this call to exit doesn't result in trap to onExit; it
+    # goes out to the caller, passing its arg to be available
+    # to the caller as $?
+    exit $exitArgument
+}
+
+# ----------- housekeeping routines ----------------
+echoedText=""
+
+function log {
+    # Echo to stdout, which is prob redirected
+    # Only echo if the arg is different from the last.
+    if [[ "$echoedText" != "$1" ]] ; then
+        echo "$(date --iso-8601=minutes) $1"
+        echoedText="$1"
+    fi
+}
 
 # ----------- led/button routines ----------------
 # ref: http://wiringpi.com/the-gpio-utility/
@@ -56,6 +102,9 @@ function pauseAndDisplayIsButtonDown {
     done
 }
 
+# ----------- flashQuickly ----------------
+# Display the two lines of text and flash the led quickly for specified
+# number of time.  No checking of the button.
 function flashQuickly {
     # each count is 0.1 of a second
     count="$1"
@@ -144,44 +193,40 @@ function confirmIfShutDownRequested {
     # seconds and clear the lcd so the user knows his first press has been
     # acknowledged, and they will hopefully release the button.  Then
     # display and ask for confirmation.
-    flashQuickly 40 "pausing...  "  " "
+    flashQuickly 30 "pausing...  "  " "
     if pauseAndDisplayIsButtonDown 5 "press again to" "shut down    " ; then
         echo "log: user requested shutdown"
         flashQuickly 30 "shutting down...  "  " "
         #### TODO exec sudo shutdown now
+        exit 0
     fi
 }
 
 # ----------- main ----------------
+function main {
 
-# flashSleepButtonCheck 5 'starting syncbox...' ''
-# if not-connected
-#     display 'wifi-connect at ...'
-#     exec wifi-connect
-# else
-#     flashSleepButtonCheck 're-configure', 'wifi ?'
-#     if button-pressed
-#         display 'wifi-connect at ...'
-#         exec wifi-connect
-#     fi
-# fi
-#
-# loop-forever
-#     check syncAvailability, if bad then
-#         flashSleepButtonCheck 5 error-message-line-1 error-message-line-2
-#         confirmIfShutDownRequested
-#     else
-#
-#     fi
-# end-forever
-#
+    # We pause for about 10 secs to allow some time for the services to start
+    flashQuickly 50 "starting syncbox..."  " "
+    log "STARTING SYNCBOX"
 
-function mainFunction {
+    if ! testWlan ; then
+        log "no connection at startup; running wifi-connect"
+        displayLcd "wifi-connect at:" "Syncbox:wolfgang"
+        sudo wifi-connect --portal-ssid Syncbox \
+            --portal-passphrase wolfgang
+        log "connected to $(nmcli -t -f NAME con show)"
+    else
+        # Although we are already connected, allow chance to re-config
+        if pauseAndDisplayIsButtonDown 5 "re-configure" "wifi ?       " ; then
+            log "user requested at startup; running wifi-connect"
+            displayLcd "wifi-connect at:" "Syncbox:wolfgang"
+            sudo wifi-connect --portal-ssid Syncbox \
+                --portal-passphrase wolfgang
+            log "connected to $(nmcli -t -f NAME con show)"
+        fi
+    fi
 
     while : ; do
-
-
-
         syncAvailability="nbg"
         # 1. Check there is a wifi connection
         if ! testWlan ; then
@@ -205,13 +250,13 @@ function mainFunction {
         fi
         if [[ "$syncAvailability" == "nbg" ]] ; then
             # Display the error for 5 secs, checking for button-press-shutdown-request
-            echo "log: error: $line1 $line2"
+            log "error: $line1 $line2"
             if pauseAndDisplayIsButtonDown 5 "$line1" "$line2" ; then
                 confirmIfShutDownRequested
             fi
         else
             myIp="$(getIp)"
-            echo "log: connected, ip=$myIp"
+            log "connected, ip=$myIp"
             if pauseAndDisplayIsButtonDown 5 "$(date '+%R %F')" "$myIp " ; then
                 confirmIfShutDownRequested
             fi
@@ -225,3 +270,9 @@ function mainFunction {
     done
 }
 
+if [[ $1 == "-logfile" ]] ; then
+    logfile=${2:-logfile}
+    exec &>> $logfile
+fi
+
+main
