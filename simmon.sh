@@ -198,7 +198,7 @@ function confirmIfShutDownRequested {
     if pauseAndDisplayIsButtonDown 5 "press again to" "shut down    " ; then
         log "user requested shutdown"
         flashQuickly 30 "shutting down...  "  " "
-        #### TODO exec sudo shutdown now
+        exec sudo shutdown now
         exit 0
     fi
 }
