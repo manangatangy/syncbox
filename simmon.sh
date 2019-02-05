@@ -1,6 +1,7 @@
 #!/bin/bash
 
 # Simplified monitor
+# More details at https://sites.google.com/site/davidxweiss/raspberry-pi-zero-w/syncbox
 
 # ----------- trap related routines ----------------
 trap "onTerm" INT TERM ERR
@@ -195,7 +196,7 @@ function confirmIfShutDownRequested {
     # display and ask for confirmation.
     flashQuickly 30 "pausing...  "  " "
     if pauseAndDisplayIsButtonDown 5 "press again to" "shut down    " ; then
-        echo "log: user requested shutdown"
+        log "user requested shutdown"
         flashQuickly 30 "shutting down...  "  " "
         #### TODO exec sudo shutdown now
         exit 0
@@ -206,8 +207,8 @@ function confirmIfShutDownRequested {
 function main {
 
     # We pause for about 10 secs to allow some time for the services to start
-    flashQuickly 50 "starting syncbox..."  " "
     log "STARTING SYNCBOX"
+    flashQuickly 50 "starting syncbox..."  " "
 
     if ! testWlan ; then
         log "no connection at startup; running wifi-connect"

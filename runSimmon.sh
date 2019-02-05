@@ -1,6 +1,6 @@
 #!/bin/bash
 
-NAME=monitor
+NAME=simmon
 USER=pi
 WDIR=$(eval echo "~$USER")/syncbox
 PIDFILE=$WDIR/$NAME.pid
