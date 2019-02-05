@@ -145,7 +145,7 @@ function confirmIfShutDownRequested {
     # acknowledged, and they will hopefully release the button.  Then
     # display and ask for confirmation.
     flashQuickly 40 "pausing...  "  " "
-    if flashSleepIsButtonDown 5 "press again" "to shut down " ; then
+    if flashSleepIsButtonDown 5 "press again to" "shut down    " ; then
         echo "log: user requested shutdown"
         flashQuickly 30 "shutting down...  "  " "
         #### TODO exec sudo shutdown now
@@ -212,13 +212,13 @@ function mainFunction {
         else
             myIp="$(getIp)"
             echo "log: connected, ip=$myIp"
-            if flashSleepIsButtonDown 5 "$(date '+%R %F')" "$myIp   " ; then
+            if flashSleepIsButtonDown 5 "$(date '+%R %F')" "$myIp " ; then
                 confirmIfShutDownRequested
             fi
-            if flashSleepIsButtonDown 5 "$(getUptime)" "$myIp   " ; then
+            if flashSleepIsButtonDown 5 "$(getUptime)" "$myIp " ; then
                 confirmIfShutDownRequested
             fi
-            if flashSleepIsButtonDown 5 "$(getSyncCpu)" "$myIp   " ; then
+            if flashSleepIsButtonDown 5 "$(getSyncCpu)" "$myIp " ; then
                 confirmIfShutDownRequested
             fi
         fi
