@@ -24,7 +24,7 @@ function toggleLed {
 
 function isButtonDown {
     # gpio => "0" (if button down) or "1" (if button up)
-    return test "$(gpio -g read 27)" -eq "0"
+    test "$(gpio -g read 27)" -eq "0"
 }
 
 # ----------- lcd ----------------
