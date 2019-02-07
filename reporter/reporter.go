@@ -18,86 +18,9 @@ import (
 	"time"
 )
 
-// Refs: https://www.thepolyglotdeveloper.com/2016/07/create-a-simple-restful-api-with-golang/
-// https://www.thepolyglotdeveloper.com/2017/07/consume-restful-api-endpoints-golang-application/
-// https://golang.org/pkg/net/http/
-
-type GetErrorResponse struct {
-	ResultCode string `json:"resultCode"`
-	Message    string `json:"message"`
-}
-
-type GetCurrentResponse struct {
-	ResultCode string `json:"resultCode"`
-	Current    string `json:"current"`
-}
-
-type GetLocationsResponse struct {
-	ResultCode string   `json:"resultCode"`
-	Locations  []string `json:"locations"`
-}
-
-type GetStatusResponse struct {
-	ResultCode  string `json:"resultCode"`
-	SquidActive bool   `json:"squidActive"`
-	VpnActive   bool   `json:"vpnActive"`
-	VpnLocation string `json:"vpnLocation"`
-}
-
-type GetPingResponse struct {
-	ResultCode string `json:"resultCode"`
-	Target     string `json:"target"`
-}
-
-type PostStartResponse struct {
-	ResultCode string `json:"resultCode"`
-}
-
-type PostStopResponse struct {
-	ResultCode string `json:"resultCode"`
-}
-
-type PostSwitchResponse struct {
-	ResultCode  string `json:"resultCode"`
-	OldLocation string `json:"oldLocation"`
-	NewLocation string `json:"newLocation"`
-}
-
-var realScripts = map[string]string{
-	"current":   "./vpn_current.sh",
-	"locations": "./vpn_locations.sh",
-	"ping":      "./vpn_ping.sh",
-	"start":     "./vpn_start.sh",
-	"status":    "./vpn_status.sh",
-	"stop":      "./vpn_stop.sh",
-	"switch":    "./vpn_switch.sh",
-}
-
-var passingTestScripts = map[string]string{
-	"current":   "./pass_vpn_current.sh",
-	"locations": "./pass_vpn_locations.sh",
-	"ping":      "./pass_vpn_ping.sh",
-	"start":     "./pass_vpn_start.sh",
-	"status":    "./pass_vpn_status.sh",
-	"stop":      "./pass_vpn_stop.sh",
-	"switch":    "./pass_vpn_switch.sh",
-}
-
-var failingTestScripts = map[string]string{
-	"current":   "./fail_vpn_current.sh",
-	"locations": "./fail_vpn_locations.sh",
-	"ping":      "./fail_vpn_ping.sh",
-	"start":     "./fail_vpn_start.sh",
-	"status":    "./fail_vpn_status.sh",
-	"stop":      "./fail_vpn_stop.sh",
-	"switch":    "./fail_vpn_switch.sh",
-}
-
-var scripts map[string]string
-
 // Get preferred outbound ip of this machine
 // Ref: https://stackoverflow.com/a/37382208/1402287
-func GetOutboundIP() net.IP {
+func getOutboundIP() net.IP {
 	conn, err := net.Dial("udp", "8.8.8.8:80")
 	if err != nil {
 		log.Fatal(err)
@@ -129,6 +52,7 @@ type Configuration struct {
 	CheckHours   int
 	EmailHours   int
 	EmailTargets []string
+	HistoryFile  string
 }
 
 var configPath string
@@ -159,12 +83,82 @@ func saveConfiguration() {
 	log.Println("configuration saved")
 }
 
+type HistoryRecord struct {
+	ServerTime       string
+	OutOfSyncFiles   int32
+	OutOfSyncByes    int64
+	BackedUpFiles    int32
+	BackedUpByes     int64
+	WorkstationFiles int32
+	WorkstationByes  int64
+	WorkstationTime  string
+	TimeDifference   string // How long after ServerTime is the WorkstationTime expressed as ddd:hh:mm
+}
+
+// func parseRecord(line string) (HistoryRecord, error) {
+// 	historyRecord := HistoryRecord{}
+// 	err := json.Unmarshal([]byte(line), &historyRecord)
+// 	return historyRecord, err
+// }
+
+func readAllHistoryRecords() ([]HistoryRecord, string) {
+	file, err := os.Open(configuration.HistoryFile)
+	if err != nil {
+		log.Printf("ERROR: opening for read %s: %s\n", configuration.HistoryFile, err)
+		return nil, err.Error()
+	}
+	defer file.Close()
+	var records []HistoryRecord
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := scanner.Text()
+		// historyRecord, err := parseRecord(line)
+		historyRecord := HistoryRecord{}
+		err := json.Unmarshal([]byte(line), &historyRecord)
+		if err != nil {
+			log.Printf("ERROR: parsing history record %s: %s\n", line, err)
+			return nil, err.Error()
+		} else {
+			records = append(records, historyRecord)
+		}
+	}
+	return records, ""
+}
+
+func saveHistoryRecord(record HistoryRecord) error {
+	line, err := json.Marshal(record)
+	if err != nil {
+		log.Printf("ERROR: marshall during saveHistoryRecord: %s\n", err)
+		return err
+	}
+	line = append(line, '\n')
+	file, err := os.OpenFile(configuration.HistoryFile,
+		os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
+	if err != nil {
+		log.Printf("ERROR: opening during saveHistoryRecord %s: %s\n", configuration.HistoryFile, err)
+		return err
+	}
+	defer file.Close()
+	_, err = file.Write(line)
+	if err != nil {
+		log.Printf("ERROR: write during saveHistoryRecord: %s\n", err)
+		return err
+	}
+	log.Println("history record saved, TimeDifference: " + record.TimeDifference)
+	return nil
+}
+
+type HistoryPageVariables struct {
+	Error   string
+	Records []HistoryRecord
+}
+
 type StatusPageVariables struct {
 	Date string
 	Time string
 }
 
-func StatusPage(w http.ResponseWriter, r *http.Request) {
+func statusPage(w http.ResponseWriter, r *http.Request) {
 	now := time.Now()
 	HomePageVars := StatusPageVariables{
 		Date: now.Format("02-01-2006"),
@@ -181,24 +175,38 @@ func StatusPage(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func HistoryPage(w http.ResponseWriter, r *http.Request) {
-	now := time.Now()
-	HomePageVars := StatusPageVariables{
-		Date: now.Format("02-01-2006"),
-		Time: now.Format("15:04:05"),
+func historyPage(w http.ResponseWriter, r *http.Request) {
+	records, error := readAllHistoryRecords()
+	historyPageVariables := HistoryPageVariables{
+		Records: records,
+		Error:   error,
 	}
 	t, err := template.ParseFiles("history.html")
 	if err != nil {
-		log.Print("template parsing error: ", err)
+		log.Print("ERROR: template parsing error: ", err)
 	}
-	err = t.Execute(w, HomePageVars)
+	err = t.Execute(w, historyPageVariables)
 	if err != nil {
-		log.Print("template executing error: ", err)
+		log.Print("ERROR: template executing error: ", err)
 	}
+
+	// temp
+	record := HistoryRecord{
+		ServerTime:       "2019-03-22 20:00:10",
+		OutOfSyncFiles:   33,
+		OutOfSyncByes:    44,
+		BackedUpFiles:    55,
+		BackedUpByes:     66,
+		WorkstationFiles: 77,
+		WorkstationByes:  88,
+		WorkstationTime:  "2019-03-22 20:00:10",
+		TimeDifference:   "6 hours",
+	}
+	saveHistoryRecord(record)
 }
 
 const (
-	STATIC_DIR = "/static/"
+	STATIC_DIR = "/static/" // prefix for urls withing templated html
 )
 
 func main() {
@@ -206,12 +214,13 @@ func main() {
 	log.Println("starting ...")
 	loadConfiguration()
 
-	fmt.Println(configuration.Port)
-	fmt.Println(configuration.DocRoot)
-	fmt.Println(configuration.AssetsRoot)
-	fmt.Println(configuration.CheckHours)
-	fmt.Println(configuration.EmailHours)
-	fmt.Println(configuration.EmailTargets)
+	// fmt.Println(configuration.Port)
+	// fmt.Println(configuration.DocRoot)
+	// fmt.Println(configuration.AssetsRoot)
+	// fmt.Println(configuration.CheckHours)
+	// fmt.Println(configuration.EmailHours)
+	// fmt.Println(configuration.EmailTargets)
+	// fmt.Println(configuration.HistoryFile)
 
 	// saveConfiguration()
 
@@ -224,18 +233,10 @@ func main() {
 	router.PathPrefix(STATIC_DIR).Handler(http.StripPrefix(STATIC_DIR, staticHhandler))
 	// Test:  curl -s http://localhost:8090/static/test.txt
 
-	router.HandleFunc("/status", StatusPage)
-	router.HandleFunc("/history", HistoryPage)
+	router.HandleFunc("/status", statusPage)
+	router.HandleFunc("/history", historyPage)
 
-	router.HandleFunc("/vpns/current", GetCurrent).Methods("GET")
-	router.HandleFunc("/vpns/locations", GetLocations).Methods("GET")
-	router.HandleFunc("/vpns/status", GetStatus).Methods("GET")
-	router.HandleFunc("/vpns/ping/{target}", GetPing).Methods("GET")
-	router.HandleFunc("/vpns/start", PostStart).Methods("POST")
-	router.HandleFunc("/vpns/stop", PostStop).Methods("POST")
-	router.HandleFunc("/vpns/switch/{newLocation}", PostSwitch).Methods("POST")
-
-	log.Printf("listening at: %s:%s\n", GetOutboundIP(), configuration.Port)
+	log.Printf("listening at: %s:%s\n", getOutboundIP(), configuration.Port)
 	log.Fatal(http.ListenAndServe(":"+configuration.Port, router))
 }
 
@@ -440,3 +441,80 @@ func PostSwitch(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 }
+
+// Refs: https://www.thepolyglotdeveloper.com/2016/07/create-a-simple-restful-api-with-golang/
+// https://www.thepolyglotdeveloper.com/2017/07/consume-restful-api-endpoints-golang-application/
+// https://golang.org/pkg/net/http/
+
+type GetErrorResponse struct {
+	ResultCode string `json:"resultCode"`
+	Message    string `json:"message"`
+}
+
+type GetCurrentResponse struct {
+	ResultCode string `json:"resultCode"`
+	Current    string `json:"current"`
+}
+
+type GetLocationsResponse struct {
+	ResultCode string   `json:"resultCode"`
+	Locations  []string `json:"locations"`
+}
+
+type GetStatusResponse struct {
+	ResultCode  string `json:"resultCode"`
+	SquidActive bool   `json:"squidActive"`
+	VpnActive   bool   `json:"vpnActive"`
+	VpnLocation string `json:"vpnLocation"`
+}
+
+type GetPingResponse struct {
+	ResultCode string `json:"resultCode"`
+	Target     string `json:"target"`
+}
+
+type PostStartResponse struct {
+	ResultCode string `json:"resultCode"`
+}
+
+type PostStopResponse struct {
+	ResultCode string `json:"resultCode"`
+}
+
+type PostSwitchResponse struct {
+	ResultCode  string `json:"resultCode"`
+	OldLocation string `json:"oldLocation"`
+	NewLocation string `json:"newLocation"`
+}
+
+var realScripts = map[string]string{
+	"current":   "./vpn_current.sh",
+	"locations": "./vpn_locations.sh",
+	"ping":      "./vpn_ping.sh",
+	"start":     "./vpn_start.sh",
+	"status":    "./vpn_status.sh",
+	"stop":      "./vpn_stop.sh",
+	"switch":    "./vpn_switch.sh",
+}
+
+var passingTestScripts = map[string]string{
+	"current":   "./pass_vpn_current.sh",
+	"locations": "./pass_vpn_locations.sh",
+	"ping":      "./pass_vpn_ping.sh",
+	"start":     "./pass_vpn_start.sh",
+	"status":    "./pass_vpn_status.sh",
+	"stop":      "./pass_vpn_stop.sh",
+	"switch":    "./pass_vpn_switch.sh",
+}
+
+var failingTestScripts = map[string]string{
+	"current":   "./fail_vpn_current.sh",
+	"locations": "./fail_vpn_locations.sh",
+	"ping":      "./fail_vpn_ping.sh",
+	"start":     "./fail_vpn_start.sh",
+	"status":    "./fail_vpn_status.sh",
+	"stop":      "./fail_vpn_stop.sh",
+	"switch":    "./fail_vpn_switch.sh",
+}
+
+var scripts map[string]string

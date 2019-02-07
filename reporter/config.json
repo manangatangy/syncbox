@@ -7,5 +7,6 @@
   "EmailTargets": [
     "david.x.weiss@gmail.com",
     "dummy@stupid"
-  ]
+  ],
+  "HistoryFile": "./history.json"
 }

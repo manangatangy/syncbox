@@ -17,78 +17,45 @@
         <!-- Google fonts now self-hosted -->
         
     </head>
-    <body class="is-center">
-        <p>The date today is {{.Date}}</p>
-        <p>And the time is {{.Time}}</p>
-        
-        <table class="pure-table pure-table-striped history-table text-right">
-            <thead>
-                <tr>
-                    <th class="text-left">#</th>
-                    <th>Make</th>
-                    <th>Model</th>
-                    <th>Year</th>
-                </tr>
-            </thead>
-        
-            <tbody>
-                <tr>
-                    <td class="text-left">1</td>
-                    <td>Honda</td>
-                    <td>Accord</td>
-                    <td>2009</td>
-                </tr>
-        
-                <tr>
-                    <td class="text-left">2</td>
-                    <td>Toyota</td>
-                    <td>1111111</td>
-                    <td>2012</td>
-                </tr>
-        
-                <tr>
-                    <td class="text-left">3</td>
-                    <td>Hyundai</td>
-                    <td>8888888</td>
-                    <td>2010</td>
-                </tr>
-        
-                <tr>
-                    <td>4</td>
-                    <td>Ford</td>
-                    <td>Focus</td>
-                    <td>2008</td>
-                </tr>
-        
-                <tr>
-                    <td>5</td>
-                    <td>Nissan</td>
-                    <td>Sentra</td>
-                    <td>2011</td>
-                </tr>
-        
-                <tr>
-                    <td>6</td>
-                    <td>BMW</td>
-                    <td>M3</td>
-                    <td>2009</td>
-                </tr>
-        
-                <tr>
-                    <td>7</td>
-                    <td>Honda</td>
-                    <td>Civic</td>
-                    <td>2010</td>
-                </tr>
-        
-                <tr>
-                    <td>8</td>
-                    <td>Kia</td>
-                    <td>Soul</td>
-                    <td>2010</td>
-                </tr>
-            </tbody>
-        </table>
-    
+    <body class="is-center">        
+        {{if ne .Error ""}}
+            <h4>ERROR: {{.Error}}</h4>
+        {{else}}
+            <table class="pure-table history-table text-right">
+                <thead>
+                    <tr class="text-right">
+                        <th>Server Time</th>
+                        <th>OutOfSyncFiles</th>
+                        <th>OutOfSyncByes</th>
+                        <th>Files</th>
+                        <th>Bytes</th>
+                        <th>WorkstationTime</th>
+                        <th>TimeDifference</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{range .Records}}
+                        <tr class="pure-table-odd">
+                            <td>{{.ServerTime}}</td>
+                            <td>{{.OutOfSyncFiles}}</td>
+                            <td>{{.OutOfSyncByes}}</td>
+                            <td>{{.BackedUpFiles}}</td>
+                            <td>{{.BackedUpByes}}</td>
+                            <td></td>
+                            <td></td>
+                        </tr>
+                        <tr>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td>{{.WorkstationFiles}}</td>
+                            <td>{{.WorkstationByes}}</td>
+                            <td>{{.WorkstationTime}}</td>
+                            <td>{{.TimeDifference}}</td>
+                        </tr>
+                    {{end}}
+                </tbody>
+            </table>    
+        {{end}}
     </body>
 </html>
