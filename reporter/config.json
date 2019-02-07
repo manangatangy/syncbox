@@ -1,0 +1,11 @@
+{
+  "Port": "8090",
+  "DocRoot": "./",
+  "AssetsRoot": "./assets",
+  "CheckHours": 24,
+  "EmailHours": 24,
+  "EmailTargets": [
+    "david.x.weiss@gmail.com",
+    "dummy@stupid"
+  ]
+}
