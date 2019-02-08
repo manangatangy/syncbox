@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/gorilla/mux"
 	"html/template"
+	"io"
 	"io/ioutil"
 	"log"
 	"net"
@@ -30,7 +31,7 @@ func getOutboundIP() net.IP {
 	return localAddr.IP
 }
 
-func checkDie(e error) {
+func CheckDie(e error) {
 	if e != nil {
 		log.Fatal("FATAL: ", e)
 	}
@@ -67,19 +68,19 @@ func loadConfiguration() {
 	configPath = os.Args[1]
 	log.Println("config path: ", configPath)
 	content, err := ioutil.ReadFile(configPath)
-	checkDie(err)
+	CheckDie(err)
 	// Ref: https://blog.golang.org/json-and-go
 	configuration = Configuration{}
 	err = json.Unmarshal(content, &configuration)
-	checkDie(err)
+	CheckDie(err)
 	log.Println("configuration loaded")
 }
 
 func saveConfiguration() {
 	content, err := json.MarshalIndent(configuration, "", "  ")
-	checkDie(err)
+	CheckDie(err)
 	err = ioutil.WriteFile(configPath, content, 0666)
-	checkDie(err)
+	CheckDie(err)
 	log.Println("configuration saved")
 }
 
@@ -95,12 +96,6 @@ type HistoryRecord struct {
 	TimeDifference   string // How long after ServerTime is the WorkstationTime expressed as ddd:hh:mm
 }
 
-// func parseRecord(line string) (HistoryRecord, error) {
-// 	historyRecord := HistoryRecord{}
-// 	err := json.Unmarshal([]byte(line), &historyRecord)
-// 	return historyRecord, err
-// }
-
 func readAllHistoryRecords() ([]HistoryRecord, string) {
 	file, err := os.Open(configuration.HistoryFile)
 	if err != nil {
@@ -112,7 +107,6 @@ func readAllHistoryRecords() ([]HistoryRecord, string) {
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		line := scanner.Text()
-		// historyRecord, err := parseRecord(line)
 		historyRecord := HistoryRecord{}
 		err := json.Unmarshal([]byte(line), &historyRecord)
 		if err != nil {
@@ -149,8 +143,10 @@ func saveHistoryRecord(record HistoryRecord) error {
 }
 
 type HistoryPageVariables struct {
-	Error   string
-	Records []HistoryRecord
+	Error          string
+	LocalFonts     bool
+	PureCssBaseURL string
+	Records        []HistoryRecord
 }
 
 type StatusPageVariables struct {
@@ -175,30 +171,44 @@ func statusPage(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// Fetches all history records from the history file,
+// and writes the expanded html string to the parm.
+// Errors are logged here.
+// PureCssBaseURL "https://unpkg.com/purecss@1.0.0/build/"
+// PureCssBaseURL "static/pure-release-1.0.0/"
+// Nesting: https://stackoverflow.com/questions/11467731/is-it-possible-to-have-nested-templates-in-go-using-the-standard-library-googl
+func FetchHistory(w io.Writer, historyPageVariables HistoryPageVariables) error {
+	records, err1 := readAllHistoryRecords()
+	historyPageVariables.Records = records
+	historyPageVariables.Error = err1
+	t, err2 := template.ParseFiles("history.html")
+	if err2 != nil {
+		log.Print("ERROR: template parsing error: ", err2)
+	}
+	err3 := t.Execute(w, historyPageVariables)
+	if err3 != nil {
+		log.Print("ERROR: template executing error: ", err3)
+	}
+	return nil
+}
+
+// Serve the history records as a page for local/connected access
 func historyPage(w http.ResponseWriter, r *http.Request) {
-	records, error := readAllHistoryRecords()
 	historyPageVariables := HistoryPageVariables{
-		Records: records,
-		Error:   error,
+		LocalFonts:     true,
+		PureCssBaseURL: "static/pure-release-1.0.0/",
 	}
-	t, err := template.ParseFiles("history.html")
-	if err != nil {
-		log.Print("ERROR: template parsing error: ", err)
-	}
-	err = t.Execute(w, historyPageVariables)
-	if err != nil {
-		log.Print("ERROR: template executing error: ", err)
-	}
+	FetchHistory(w, historyPageVariables)
 
 	// temp
 	record := HistoryRecord{
 		ServerTime:       "2019-03-22 20:00:10",
 		OutOfSyncFiles:   33,
 		OutOfSyncByes:    44,
-		BackedUpFiles:    55,
-		BackedUpByes:     66,
-		WorkstationFiles: 77,
-		WorkstationByes:  88,
+		BackedUpFiles:    11111,
+		BackedUpByes:     88888,
+		WorkstationFiles: 88888,
+		WorkstationByes:  11111,
 		WorkstationTime:  "2019-03-22 20:00:10",
 		TimeDifference:   "6 hours",
 	}
@@ -224,6 +234,9 @@ func main() {
 
 	// saveConfiguration()
 
+	if err := SendReport(); err == nil {
+		log.Println("SendReport OK")
+	}
 	router := mux.NewRouter().StrictSlash(true)
 
 	// Ref: https://gowebexamples.com/static-files/
