@@ -14,7 +14,6 @@ import (
 	"gopkg.in/gomail.v2"
 	// "bufio"
 	// "encoding/json"
-	// "fmt"
 	// "github.com/gorilla/mux"
 	// "html/template"
 	// "io/ioutil"
@@ -25,8 +24,26 @@ import (
 	// "os/exec"
 	// "regexp"
 	// "strings"
-	// "time"
+	"fmt"
+	"time"
 )
+
+func say(s string) {
+	for i := 0; i < 5; i++ {
+		time.Sleep(100 * time.Millisecond)
+		fmt.Println(s)
+	}
+}
+// https://tour.golang.org/concurrency/3
+// https://github.com/andlabs/wakeup     MainWIndow app FTW!
+// https://mmcgrana.github.io/2012/09/go-by-example-timers-and-tickers.html
+// https://gobyexample.com/channel-synchronization    Channel sync
+// 
+
+func testMain() {
+	go say("world")
+	say("hello")
+}
 
 func SendReport() error {
 	var body bytes.Buffer
