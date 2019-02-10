@@ -21,7 +21,7 @@ case "$1" in
         --chuid $USER \
         --chdir $WDIR \
         --verbose \
-        -- -logfile $LOGFILE 
+        -- -config config.json -logfile $LOGFILE 
     ;;
   stop)
     echo -n "Stopping: "$NAME

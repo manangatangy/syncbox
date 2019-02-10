@@ -1,4 +1,5 @@
 package main
+// support logging /home/pi/syncbox/reporter/reporter -logfile /home/pi/syncbox/reporter/reporter.log
 
 // Refs: https://golang.org/pkg/
 import (
@@ -62,10 +63,10 @@ var configuration Configuration
 func loadConfiguration() {
 	// Determines the configPath from the command line, then
 	// loads the config making it globally available.
-	if len(os.Args) != 2 {
-		log.Fatal("FATAL: config file path not specified")
+	configPath = "./config.json"
+	if len(os.Args) == 2 {
+		configPath = os.Args[1]
 	}
-	configPath = os.Args[1]
 	log.Println("config path: ", configPath)
 	content, err := ioutil.ReadFile(configPath)
 	CheckDie(err)
