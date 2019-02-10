@@ -276,4 +276,6 @@ if [[ $1 == "-logfile" ]] ; then
     exec &>> $logfile
 fi
 
+~pi/syncbox/reporter/runReporter.sh start
+
 main
