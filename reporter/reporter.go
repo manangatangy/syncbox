@@ -150,15 +150,23 @@ type HistoryPageVariables struct {
 }
 
 type StatusPageVariables struct {
-	Date string
-	Time string
+	Date          string
+	Time          string
+	EmailerResult string
 }
 
 func statusPage(w http.ResponseWriter, r *http.Request) {
 	now := time.Now()
+	emailerResult := "SendReport OK"
+	if err := SendReport(); err == nil {
+		log.Println(emailerResult)
+	} else {
+		emailerResult = err.Error()
+	}
 	HomePageVars := StatusPageVariables{
-		Date: now.Format("02-01-2006"),
-		Time: now.Format("15:04:05"),
+		Date:          now.Format("02-01-2006"),
+		Time:          now.Format("15:04:05"),
+		EmailerResult: emailerResult,
 	}
 	// Ref: https://gowebexamples.com/templates/
 	t, err := template.ParseFiles("status.html")
@@ -233,10 +241,6 @@ func main() {
 	// fmt.Println(configuration.HistoryFile)
 
 	// saveConfiguration()
-
-	if err := SendReport(); err == nil {
-		log.Println("SendReport OK")
-	}
 	router := mux.NewRouter().StrictSlash(true)
 
 	// Ref: https://gowebexamples.com/static-files/

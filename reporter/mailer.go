@@ -34,11 +34,12 @@ func say(s string) {
 		fmt.Println(s)
 	}
 }
+
 // https://tour.golang.org/concurrency/3
 // https://github.com/andlabs/wakeup     MainWIndow app FTW!
 // https://mmcgrana.github.io/2012/09/go-by-example-timers-and-tickers.html
 // https://gobyexample.com/channel-synchronization    Channel sync
-// 
+//
 
 func testMain() {
 	go say("world")
