@@ -7,7 +7,7 @@
 // Ref: https://gist.github.com/chrisgillis/10888032  has useful info
 
 // Watch the specified AcerFilePath (with a poll interval) for changes.
-// When the file changes, then retrieve a current BackupStatus from 
+// When the file changes, then retrieve a current BackupStatus from
 // ???, create a HistoryRecord from the two, and send it using the Emailer
 // and also add to the HistoryArchive.
 package main
@@ -49,25 +49,24 @@ func testMain() {
 	say("hello")
 }
 
-// Mailer returns a chan int to which any value should be sent, 
+// Mailer returns a chan int to which any value should be sent,
 // to trigger then emailing, based on the current history.
-func Mailer(updateInterval time.Duration) chan<- int {
-	commands := make(chan int)
-	urlStatus := make(map[string]string)
-	ticker := time.NewTicker(updateInterval)
-	go func() {
-		for {
-			select {
-			case c := <-commands:
-				sendReport()
-			}
-		}
-	}()
-	return commands
-}
+// func Mailer(updateInterval time.Duration) chan<- int {
+// 	commands := make(chan int)
+// 	urlStatus := make(map[string]string)
+// 	ticker := time.NewTicker(updateInterval)
+// 	go func() {
+// 		for {
+// 			select {
+// 			case c := <-commands:
+// 				SendReport()
+// 			}
+// 		}
+// 	}()
+// 	return commands
+// }
 
-
-func sendReport() error {
+func SendReport() error {
 	var body bytes.Buffer
 	body.Write([]byte("Hello <b>Bob</b> and <i>Cora</i>!\n"))
 	historyPageVariables := HistoryPageVariables{
