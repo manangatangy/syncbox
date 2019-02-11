@@ -6,6 +6,10 @@
 // Ref: https://github.com/go-gomail/gomail and https://godoc.org/gopkg.in/gomail.v2 seems to be the go hah
 // Ref: https://gist.github.com/chrisgillis/10888032  has useful info
 
+// Watch the specified AcerFilePath (with a poll interval) for changes.
+// When the file changes, then retrieve a current BackupStatus from 
+// ???, create a HistoryRecord from the two, and send it using the Emailer
+// and also add to the HistoryArchive.
 package main
 
 // Refs: https://golang.org/pkg/
@@ -39,14 +43,31 @@ func say(s string) {
 // https://github.com/andlabs/wakeup     MainWIndow app FTW!
 // https://mmcgrana.github.io/2012/09/go-by-example-timers-and-tickers.html
 // https://gobyexample.com/channel-synchronization    Channel sync
-//
 
 func testMain() {
 	go say("world")
 	say("hello")
 }
 
-func SendReport() error {
+// Mailer returns a chan int to which any value should be sent, 
+// to trigger then emailing, based on the current history.
+func Mailer(updateInterval time.Duration) chan<- int {
+	commands := make(chan int)
+	urlStatus := make(map[string]string)
+	ticker := time.NewTicker(updateInterval)
+	go func() {
+		for {
+			select {
+			case c := <-commands:
+				sendReport()
+			}
+		}
+	}()
+	return commands
+}
+
+
+func sendReport() error {
 	var body bytes.Buffer
 	body.Write([]byte("Hello <b>Bob</b> and <i>Cora</i>!\n"))
 	historyPageVariables := HistoryPageVariables{
@@ -57,6 +78,8 @@ func SendReport() error {
 		body.WriteString(err.Error())
 	}
 	m := gomail.NewMessage()
+	// todo get  to/from from configuration
+	// todo akter subkect to be summary of missing files, and since
 	m.SetHeader("From", "syncboxmichele@gmail.com")
 	m.SetHeader("To", "david.x.weiss@gmail.com")
 	// m.SetAddressHeader("Cc", "dan@example.com", "Dan")
