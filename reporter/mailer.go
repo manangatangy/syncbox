@@ -54,7 +54,7 @@ func SendReport() error {
 		// Use prefix for url access from within the target's mail reader
 		PureCssBaseURL: "https://unpkg.com/purecss@1.0.0/build/",
 	}
-	if err := FetchHistory(&body, historyPageVariables); err != nil {
+	if err := HistoryFetch(&body, historyPageVariables); err != nil {
 		// Email the error message instead of the report
 		body.WriteString(err.Error())
 	}

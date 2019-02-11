@@ -1,14 +1,15 @@
 package main
+
 // support logging /home/pi/syncbox/reporter/reporter -logfile /home/pi/syncbox/reporter/reporter.log
 
 // Refs: https://golang.org/pkg/
 import (
 	"bufio"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"github.com/gorilla/mux"
 	"html/template"
-	"io"
 	"io/ioutil"
 	"log"
 	"net"
@@ -20,218 +21,24 @@ import (
 	"time"
 )
 
-// Get preferred outbound ip of this machine
-// Ref: https://stackoverflow.com/a/37382208/1402287
-func getOutboundIP() net.IP {
-	conn, err := net.Dial("udp", "8.8.8.8:80")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer conn.Close()
-	localAddr := conn.LocalAddr().(*net.UDPAddr)
-	return localAddr.IP
-}
-
-func CheckDie(e error) {
-	if e != nil {
-		log.Fatal("FATAL: ", e)
-	}
-}
-
-/*
- - port for serving html [8090]
- - path to root of served documents (may be absolute or relative to wd) [./]
- - path to static documents (may be absolute or relative to wd) [./static]
- - syncthing check period in hours [24]
- - report email target [me@gmail.com]
- - report email period in hours [24]
-
-*/
-type Configuration struct {
-	Port         string
-	DocRoot      string
-	AssetsRoot   string
-	CheckHours   int
-	EmailHours   int
-	EmailTargets []string
-	HistoryFile  string
-}
-
-var configPath string
-var configuration Configuration
-
-func loadConfiguration() {
-	// Determines the configPath from the command line, then
-	// loads the config making it globally available.
-	configPath = "./config.json"
-	if len(os.Args) == 2 {
-		configPath = os.Args[1]
-	}
-	log.Println("config path: ", configPath)
-	content, err := ioutil.ReadFile(configPath)
-	CheckDie(err)
-	// Ref: https://blog.golang.org/json-and-go
-	configuration = Configuration{}
-	err = json.Unmarshal(content, &configuration)
-	CheckDie(err)
-	log.Println("configuration loaded")
-}
-
-func saveConfiguration() {
-	content, err := json.MarshalIndent(configuration, "", "  ")
-	CheckDie(err)
-	err = ioutil.WriteFile(configPath, content, 0666)
-	CheckDie(err)
-	log.Println("configuration saved")
-}
-
-type HistoryRecord struct {
-	ServerTime       string
-	OutOfSyncFiles   int32
-	OutOfSyncByes    int64
-	BackedUpFiles    int32
-	BackedUpByes     int64
-	WorkstationFiles int32
-	WorkstationByes  int64
-	WorkstationTime  string
-	TimeDifference   string // How long after ServerTime is the WorkstationTime expressed as ddd:hh:mm
-}
-
-func readAllHistoryRecords() ([]HistoryRecord, string) {
-	file, err := os.Open(configuration.HistoryFile)
-	if err != nil {
-		log.Printf("ERROR: opening for read %s: %s\n", configuration.HistoryFile, err)
-		return nil, err.Error()
-	}
-	defer file.Close()
-	var records []HistoryRecord
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		line := scanner.Text()
-		historyRecord := HistoryRecord{}
-		err := json.Unmarshal([]byte(line), &historyRecord)
-		if err != nil {
-			log.Printf("ERROR: parsing history record %s: %s\n", line, err)
-			return nil, err.Error()
-		} else {
-			records = append(records, historyRecord)
-		}
-	}
-	return records, ""
-}
-
-func saveHistoryRecord(record HistoryRecord) error {
-	line, err := json.Marshal(record)
-	if err != nil {
-		log.Printf("ERROR: marshall during saveHistoryRecord: %s\n", err)
-		return err
-	}
-	line = append(line, '\n')
-	file, err := os.OpenFile(configuration.HistoryFile,
-		os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
-	if err != nil {
-		log.Printf("ERROR: opening during saveHistoryRecord %s: %s\n", configuration.HistoryFile, err)
-		return err
-	}
-	defer file.Close()
-	_, err = file.Write(line)
-	if err != nil {
-		log.Printf("ERROR: write during saveHistoryRecord: %s\n", err)
-		return err
-	}
-	log.Println("history record saved, TimeDifference: " + record.TimeDifference)
-	return nil
-}
-
-type HistoryPageVariables struct {
-	Error          string
-	LocalFonts     bool
-	PureCssBaseURL string
-	Records        []HistoryRecord
-}
-
-type StatusPageVariables struct {
-	Date          string
-	Time          string
-	EmailerResult string
-}
-
-func statusPage(w http.ResponseWriter, r *http.Request) {
-	now := time.Now()
-	emailerResult := "SendReport OK"
-	if err := SendReport(); err == nil {
-		log.Println(emailerResult)
-	} else {
-		emailerResult = err.Error()
-	}
-	HomePageVars := StatusPageVariables{
-		Date:          now.Format("02-01-2006"),
-		Time:          now.Format("15:04:05"),
-		EmailerResult: emailerResult,
-	}
-	// Ref: https://gowebexamples.com/templates/
-	t, err := template.ParseFiles("status.html")
-	if err != nil {
-		log.Print("template parsing error: ", err)
-	}
-	err = t.Execute(w, HomePageVars)
-	if err != nil {
-		log.Print("template executing error: ", err)
-	}
-}
-
-// Fetches all history records from the history file,
-// and writes the expanded html string to the parm.
-// Errors are logged here.
-// PureCssBaseURL "https://unpkg.com/purecss@1.0.0/build/"
-// PureCssBaseURL "static/pure-release-1.0.0/"
-// Nesting: https://stackoverflow.com/questions/11467731/is-it-possible-to-have-nested-templates-in-go-using-the-standard-library-googl
-func FetchHistory(w io.Writer, historyPageVariables HistoryPageVariables) error {
-	records, err1 := readAllHistoryRecords()
-	historyPageVariables.Records = records
-	historyPageVariables.Error = err1
-	t, err2 := template.ParseFiles("history.html")
-	if err2 != nil {
-		log.Print("ERROR: template parsing error: ", err2)
-	}
-	err3 := t.Execute(w, historyPageVariables)
-	if err3 != nil {
-		log.Print("ERROR: template executing error: ", err3)
-	}
-	return nil
-}
-
-// Serve the history records as a page for local/connected access
-func historyPage(w http.ResponseWriter, r *http.Request) {
-	historyPageVariables := HistoryPageVariables{
-		LocalFonts:     true,
-		PureCssBaseURL: "static/pure-release-1.0.0/",
-	}
-	FetchHistory(w, historyPageVariables)
-
-	// temp
-	record := HistoryRecord{
-		ServerTime:       "2019-03-22 20:00:10",
-		OutOfSyncFiles:   33,
-		OutOfSyncByes:    44,
-		BackedUpFiles:    11111,
-		BackedUpByes:     88888,
-		WorkstationFiles: 88888,
-		WorkstationByes:  11111,
-		WorkstationTime:  "2019-03-22 20:00:10",
-		TimeDifference:   "6 hours",
-	}
-	saveHistoryRecord(record)
-}
-
 const (
 	STATIC_DIR = "/static/" // prefix for urls withing templated html
 )
 
 func main() {
+	// Only -config=cfgpath and -logfile=logpath are supported.
+	flag.StringVar(&configPath, "config", "config.json", "path to configuration file")
+	logFilePath := flag.String("logfile", "", "path to logfile")
+	flag.Parse()
+	if *logFilePath != "" {
+		f, err := os.OpenFile(*logFilePath, os.O_APPEND|os.O_CREATE|os.O_RDWR, 0666)
+		CheckDie(err)
+		defer f.Close()
+		log.SetOutput(f)
+	}
 
-	log.Println("starting ...")
-	loadConfiguration()
+	log.Println("STARTING ...")
+	ConfigurationLoad()
 
 	// fmt.Println(configuration.Port)
 	// fmt.Println(configuration.DocRoot)
@@ -251,12 +58,112 @@ func main() {
 	router.PathPrefix(STATIC_DIR).Handler(http.StripPrefix(STATIC_DIR, staticHhandler))
 	// Test:  curl -s http://localhost:8090/static/test.txt
 
-	router.HandleFunc("/status", statusPage)
-	router.HandleFunc("/history", historyPage)
+	router.HandleFunc("/", HomePage)
+	router.HandleFunc("/history", HistoryPage)
 
 	log.Printf("listening at: %s:%s\n", getOutboundIP(), configuration.Port)
 	log.Fatal(http.ListenAndServe(":"+configuration.Port, router))
 }
+
+func CheckDie(e error) {
+	if e != nil {
+		log.Fatal("FATAL: ", e)
+	}
+}
+
+/*
+ - port for serving html [8090]
+ - path to root of served documents (may be absolute or relative to wd) [./]
+ - path to static documents (may be absolute or relative to wd) [./static]
+ - syncthing check period in hours [24]
+ - report email target [me@gmail.com]
+ - report email period in hours [24]
+*/
+type Configuration struct {
+	Port         string
+	DocRoot      string
+	AssetsRoot   string
+	CheckHours   int
+	EmailHours   int
+	EmailTargets []string
+	HistoryFile  string
+}
+
+var configPath string
+var configuration Configuration
+
+func ConfigurationLoad() {
+	// Load the config (from configPath) making it globally available.
+	log.Println("config path: ", configPath)
+	content, err := ioutil.ReadFile(configPath)
+	CheckDie(err)
+	// Ref: https://blog.golang.org/json-and-go
+	configuration = Configuration{}
+	err = json.Unmarshal(content, &configuration)
+	CheckDie(err)
+	log.Println("configuration loaded")
+}
+
+func ConfigurationSave() {
+	content, err := json.MarshalIndent(configuration, "", "  ")
+	CheckDie(err)
+	err = ioutil.WriteFile(configPath, content, 0666)
+	CheckDie(err)
+	log.Println("configuration saved")
+}
+
+type HomePageVariables struct {
+	Date          string
+	Time          string
+	EmailerResult string
+}
+
+func HomePage(w http.ResponseWriter, r *http.Request) {
+	now := time.Now()
+	emailerResult := "SendReport OK"
+	if err := SendReport(); err == nil {
+		log.Println(emailerResult)
+	} else {
+		emailerResult = err.Error()
+	}
+	HomePageVars := HomePageVariables{
+		Date:          now.Format("02-01-2006"),
+		Time:          now.Format("15:04:05"),
+		EmailerResult: emailerResult,
+	}
+	// Ref: https://gowebexamples.com/templates/
+	t, err := template.ParseFiles("home.html")
+	if err != nil {
+		log.Print("template parsing error: ", err)
+	}
+	err = t.Execute(w, HomePageVars)
+	if err != nil {
+		log.Print("template executing error: ", err)
+	}
+}
+
+// Get preferred outbound ip of this machine
+// Ref: https://stackoverflow.com/a/37382208/1402287
+func getOutboundIP() net.IP {
+	conn, err := net.Dial("udp", "8.8.8.8:80")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer conn.Close()
+	localAddr := conn.LocalAddr().(*net.UDPAddr)
+	return localAddr.IP
+}
+
+
+
+
+
+
+
+
+
+
+
 
 func execAndProcessError(handleError bool,
 	w http.ResponseWriter, c string, arg ...string) (string, error) {
