@@ -10,7 +10,9 @@ The reporter subproject consists of;
   - periodically emails some reports
 - daemonising script runReporter.sh, which
   - starts, stops, status' the reporter exe.  This script should be run at startup
-    from /etc/rc.local
+    from /etc/rc.local; as
+    ~pi/syncbox/runSimmon.sh start
+    ~pi/syncbox/reporter/runReporter.sh start
 - various templates (*.html)
 - config file that specifies;
  - port for serving html [8090]

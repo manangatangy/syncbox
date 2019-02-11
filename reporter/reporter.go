@@ -62,7 +62,7 @@ func main() {
 	router.HandleFunc("/history", HistoryPage)
 
 	log.Printf("listening at: %s:%s\n", getOutboundIP(), configuration.Port)
-	log.Fatal(http.ListenAndServe(":"+configuration.Port, router))
+	log.Fatal("FATAL: ", http.ListenAndServe(":"+configuration.Port, router))
 }
 
 func CheckDie(e error) {
@@ -147,13 +147,22 @@ func HomePage(w http.ResponseWriter, r *http.Request) {
 // Get preferred outbound ip of this machine
 // Ref: https://stackoverflow.com/a/37382208/1402287
 func getOutboundIP() net.IP {
-	conn, err := net.Dial("udp", "8.8.8.8:80")
-	if err != nil {
-		log.Fatal(err)
+	// Try for up to 10 seconds before quitting
+	attempts := 0
+	for {
+		conn, err := net.Dial("udp", "8.8.8.8:80")
+		if err == nil {
+			defer conn.Close()
+			localAddr := conn.LocalAddr().(*net.UDPAddr)
+			return localAddr.IP
+		}
+		attempts = attempts + 1
+		if attempts >= 10 {
+			log.Fatal("FATAL: ", err)
+		}
+		log.Print("failed to connect, trying again in 1 second; ", err)
+		time.Sleep(1 * time.Second)
 	}
-	defer conn.Close()
-	localAddr := conn.LocalAddr().(*net.UDPAddr)
-	return localAddr.IP
 }
 
 func execAndProcessError(handleError bool,

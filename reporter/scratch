@@ -53,11 +53,15 @@ func main() {
 		census[Gopher], census[Zebra], census[Unknown])
 
 }
-
+ref: https://stackoverflow.com/questions/7783341/run-script-with-rc-local-script-works-but-not-at-boot
 exec 2> /tmp/rc.local.log  # send stderr from rc.local to a log file
 exec 1>&2                      # send stdout to the same log file
 set -x                         # tell sh to display commands before execution
 
+or better
+ref: https://askubuntu.com/questions/434242/where-is-log-file-from-rc-local
+exec 1>/tmp/rc.plocal.log 2>&1  # send stdout and stderr from rc.local to a log file
+set -x                         # tell sh to display commands before execution
 ------------------
 v, ok := <-ch
 ok will be false after channel is empty and closed
