@@ -53,3 +53,55 @@ func main() {
 		census[Gopher], census[Zebra], census[Unknown])
 
 }
+
+exec 2> /tmp/rc.local.log  # send stderr from rc.local to a log file
+exec 1>&2                      # send stdout to the same log file
+set -x                         # tell sh to display commands before execution
+
+------------------
+v, ok := <-ch
+ok will be false after channel is empty and closed
+------------------
+for i := range c  receives values until channel is closed
+------------------
+select will wait-read/write on many channels at once, default case (no other case is ready)
+
+
+package main
+import "fmt"
+func fibonacci(c, quit chan int) {
+	x, y := 0, 1
+	for {
+		select {
+		case c <- x:
+			x, y = y, x+y
+		case <-quit:
+			fmt.Println("quit")
+			return
+		}
+	}
+}
+func main() {
+	c := make(chan int)
+	quit := make(chan int)
+	go func() {
+		for i := 0; i < 10; i++ {
+			fmt.Println(<-c)
+		}
+		quit <- 0
+	}()
+	fibonacci(c, quit)
+}
+------------------
+for i := range c {
+		fmt.Println(i)
+	}
+------------------
+mux sync.Mutex
+c.mux.Lock()
+	// Lock so only one goroutine at a time can access the map c.v.
+	defer c.mux.Unlock()
+	return c.v[key]
+------------------
+------------------
+------------------
