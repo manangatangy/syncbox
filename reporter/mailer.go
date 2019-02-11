@@ -50,9 +50,7 @@ func SendReport() error {
 	var body bytes.Buffer
 	body.Write([]byte("Hello <b>Bob</b> and <i>Cora</i>!\n"))
 	historyPageVariables := HistoryPageVariables{
-		LocalFonts: false,
-		// Use prefix for url access from within the target's mail reader
-		PureCssBaseURL: "https://unpkg.com/purecss@1.0.0/build/",
+		LocalServer: false,
 	}
 	if err := HistoryFetch(&body, historyPageVariables); err != nil {
 		// Email the error message instead of the report

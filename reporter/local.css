@@ -1,0 +1,20 @@
+
+/* generated from: https://google-webfonts-helper.herokuapp.com/fonts/space-mono?subsets=latin */
+/* from https://fonts.google.com/specimen/Space+Mono?selection.family=Space+Mono */
+@font-face {
+    font-family: 'Space Mono';
+    font-style: normal;
+    font-weight: 400;
+    src: local('Space Mono'), local('SpaceMono-Regular'),
+        url('static/fonts/space-mono-v4-latin-regular.woff2') format('woff2'), /* Chrome 26+, Opera 23+, Firefox 39+ */
+        url('static/fonts/space-mono-v4-latin-regular.woff') format('woff'); /* Chrome 6+, Firefox 3.6+, IE 9+, Safari 5.1+ */
+}
+/* space-mono-700 - latin */
+@font-face {
+    font-family: 'Space Mono';
+    font-style: normal;
+    font-weight: 700;
+    src: local('Space Mono Bold'), local('SpaceMono-Bold'),
+        url('static/fonts/space-mono-v4-latin-700.woff2') format('woff2'), /* Chrome 26+, Opera 23+, Firefox 39+ */
+        url('static/fonts/space-mono-v4-latin-700.woff') format('woff'); /* Chrome 6+, Firefox 3.6+, IE 9+, Safari 5.1+ */
+}

@@ -11,37 +11,9 @@
         
         <!-- <link rel="icon" type="image/png" href="images/icons/favicon.ico" /> -->
 
-        <!-- The purecss is loaded locally (when the history is viewed in tthe browser, in case that
-            the external internet is unavailable, for some reason) or is loaded from the CDN when
-            viewed in the email reader, since internet must be available then. -->
-        <link rel="stylesheet" type="text/css" href="{{.PureCssBaseURL}}pure.css">
-        <!-- todo: include the report.css as a nested template -->
-
-        {{if eq .LocalFonts true}}
-            <style type="text/css">
-                /* generated from: https://google-webfonts-helper.herokuapp.com/fonts/space-mono?subsets=latin */
-                /* from https://fonts.google.com/specimen/Space+Mono?selection.family=Space+Mono */
-                @font-face {
-                    font-family: 'Space Mono';
-                    font-style: normal;
-                    font-weight: 400;
-                    src: local('Space Mono'), local('SpaceMono-Regular'),
-                        url('static/fonts/space-mono-v4-latin-regular.woff2') format('woff2'), /* Chrome 26+, Opera 23+, Firefox 39+ */
-                        url('static/fonts/space-mono-v4-latin-regular.woff') format('woff'); /* Chrome 6+, Firefox 3.6+, IE 9+, Safari 5.1+ */
-                }
-                /* space-mono-700 - latin */
-                @font-face {
-                    font-family: 'Space Mono';
-                    font-style: normal;
-                    font-weight: 700;
-                    src: local('Space Mono Bold'), local('SpaceMono-Bold'),
-                        url('static/fonts/space-mono-v4-latin-700.woff2') format('woff2'), /* Chrome 26+, Opera 23+, Firefox 39+ */
-                        url('static/fonts/space-mono-v4-latin-700.woff') format('woff'); /* Chrome 6+, Firefox 3.6+, IE 9+, Safari 5.1+ */
-                }
-            </style>        
-        {{else}}
-            <!-- In the gmail reader, it seems that fonts are not allowed so this line is kindof useless -->
-            <link href="https://fonts.googleapis.com/css?family=Space+Mono" rel="stylesheet">
+        {{if .LocalServer}}
+            <link rel="stylesheet" type="text/css" href="static/pure-release-1.0.0/pure.css">
+            <link rel="stylesheet" type="text/css" href="static/local.css">
         {{end}}
         <style type="text/css">
             .margin-auto {
@@ -58,14 +30,18 @@
             }
             .history-table {
                 font-family: 'Space Mono', monospace;
-                font-size: 14px;
+                font-size: 16px;
                 margin-left: auto;
                 margin-right: auto;
                 width: 95%;
             }
+            .history-table th {
+                padding-top: 0.5em;
+                padding-bottom: 0.5em;
+            }
             .history-table td {
-                padding-top: 0.25em;
-                padding-bottom: 0.25em;
+                padding-top: 0.5em;
+                padding-bottom: 0.5em;
             }
         </style>        
     </head>

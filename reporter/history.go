@@ -12,16 +12,14 @@ import (
 
 type HistoryPageVariables struct {
 	Error          string
-	LocalFonts     bool
-	PureCssBaseURL string
+	LocalServer     bool
 	Records        []HistoryRecord
 }
 
 // Serve the history records as a page for local/connected access
 func HistoryPage(w http.ResponseWriter, r *http.Request) {
 	historyPageVariables := HistoryPageVariables{
-		LocalFonts:     true,
-		PureCssBaseURL: "static/pure-release-1.0.0/",
+		LocalServer:     true,
 	}
 	HistoryFetch(w, historyPageVariables)
 

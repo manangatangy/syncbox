@@ -113,6 +113,7 @@ func ConfigurationSave() {
 }
 
 type HomePageVariables struct {
+	LocalServer   bool
 	Date          string
 	Time          string
 	EmailerResult string
@@ -127,6 +128,7 @@ func HomePage(w http.ResponseWriter, r *http.Request) {
 		emailerResult = err.Error()
 	}
 	HomePageVars := HomePageVariables{
+		LocalServer:   true,
 		Date:          now.Format("02-01-2006"),
 		Time:          now.Format("15:04:05"),
 		EmailerResult: emailerResult,
@@ -153,17 +155,6 @@ func getOutboundIP() net.IP {
 	localAddr := conn.LocalAddr().(*net.UDPAddr)
 	return localAddr.IP
 }
-
-
-
-
-
-
-
-
-
-
-
 
 func execAndProcessError(handleError bool,
 	w http.ResponseWriter, c string, arg ...string) (string, error) {
