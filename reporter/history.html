@@ -53,22 +53,22 @@
                 <thead>
                     <tr class="text-right">
                         <th>Server Time</th>
-                        <th>OutOfSyncFiles</th>
-                        <th>OutOfSyncByes</th>
+                        <th>Missing Files</th>
+                        <th>Missing Byes</th>
                         <th>Files</th>
                         <th>Bytes</th>
-                        <th>WorkstationTime</th>
-                        <th>TimeDifference</th>
+                        <th>Workstation Time</th>
+                        <th>Workstation Age</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {{range .Records}}
+                    {{range .History}}
                         <tr class="pure-table-odd">
                             <td>{{.ServerTime}}</td>
-                            <td>{{.OutOfSyncFiles}}</td>
-                            <td>{{.OutOfSyncByes}}</td>
+                            <td>{{.MissingFiles}}</td>
+                            <td>{{.MissingBytes}}</td>
                             <td>{{.BackedUpFiles}}</td>
-                            <td>{{.BackedUpByes}}</td>
+                            <td>{{.BackedUpBytes}}</td>
                             <td></td>
                             <td></td>
                         </tr>
@@ -76,10 +76,10 @@
                             <td></td>
                             <td></td>
                             <td></td>
-                            <td>{{.WorkstationFiles}}</td>
-                            <td>{{.WorkstationByes}}</td>
-                            <td>{{.WorkstationTime}}</td>
-                            <td>{{.TimeDifference}}</td>
+                            <td>{{.AcerFiles}}</td>
+                            <td>{{.AcerBytes}}</td>
+                            <td>{{.AcerTimeStamp}}</td>
+                            <td>{{.AcerAge}}</td>
                         </tr>
                     {{end}}
                 </tbody>
