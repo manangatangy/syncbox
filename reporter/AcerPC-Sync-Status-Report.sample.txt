@@ -1,0 +1,33 @@
+"AcerPC-Sync-Status-Report" 
+Tue 12/02/2019 
+08:18 AM
+{
+  "errors": 0,
+  "globalBytes": 3083578304,
+  "globalDeleted": 723,
+  "globalDirectories": 1487,
+  "globalFiles": 10399,
+  "globalSymlinks": 0,
+  "globalTotalItems": 12609,
+  "ignorePatterns": false,
+  "inSyncBytes": 3083578304,
+  "inSyncFiles": 10399,
+  "invalid": "",
+  "localBytes": 3083578304,
+  "localDeleted": 323,
+  "localDirectories": 1487,
+  "localFiles": 10399,
+  "localSymlinks": 0,
+  "localTotalItems": 12209,
+  "needBytes": 0,
+  "needDeletes": 0,
+  "needDirectories": 0,
+  "needFiles": 0,
+  "needSymlinks": 0,
+  "needTotalItems": 0,
+  "pullErrors": 0,
+  "sequence": 36695,
+  "state": "idle",
+  "stateChanged": "2019-02-12T08:10:33.7346744+11:00",
+  "version": 36695
+}
