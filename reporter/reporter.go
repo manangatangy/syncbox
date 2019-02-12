@@ -22,9 +22,9 @@ import (
 )
 
 const (
-	STATIC_DIR         = "/static/"                 // prefix for urls withing templated html
-	ACER_TIME_FORMAT   = "02 Jan 2006 15:04 AEDT"   // As found on AcerDataFile
-	REPORT_TIME_FORMAT = "2006-01-02 15:04:00" // As written to reports
+	STATIC_DIR         = "/static/"                     // prefix for urls withing templated html
+	ACER_TIME_FORMAT   = "03:04 PM, Mon 02/01/2006 MST" // As found on AcerDataFile
+	REPORT_TIME_FORMAT = "2006-01-02 15:04:00"          // As written to reports
 )
 
 func main() {
@@ -42,29 +42,9 @@ func main() {
 	log.Println("STARTING ...")
 	ConfigurationLoad()
 
-	/*
-		ServerTime    string // Also the timestamp for this record
-		  int32  // BackedUp/Acer diff
-		  int64  // BackedUp/Acer diff
-		 int32  // Syncthing.localFiles
-		  int64  // Syncthing.localBytes
-		     int32
-		     int64
-		 string
-		       string // How long after ServerTime is the AcerTimeStamp expressed as ddd:hh:mm
-
-	*/
 	backupStatus, err := GetBackupStatus()
 	if err == nil {
-		fmt.Printf("backupStatus.ServerTime: %s\n", backupStatus.ServerTime)
-		fmt.Printf("backupStatus.MissingFiles: %d\n", backupStatus.MissingFiles)
-		fmt.Printf("backupStatus.MissingBytes: %d\n", backupStatus.MissingBytes)
-		fmt.Printf("backupStatus.BackedUpFiles: %d\n", backupStatus.BackedUpFiles)
-		fmt.Printf("backupStatus.BackedUpBytes: %d\n", backupStatus.BackedUpBytes)
-		fmt.Printf("backupStatus.AcerFiles: %d\n", backupStatus.AcerFiles)
-		fmt.Printf("backupStatus.AcerBytes: %d\n", backupStatus.AcerBytes)
-		fmt.Printf("backupStatus.AcerTimeStamp: %s\n", backupStatus.AcerTimeStamp)
-		fmt.Printf("backupStatus.AcerAge: %s\n", backupStatus.AcerAge)
+		fmt.Printf("backupStatus ==> %v\n", backupStatus)
 	} else {
 		log.Println("error from GetBackupStatus " + err.Error())
 	}

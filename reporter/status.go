@@ -2,15 +2,13 @@ package main
 
 import (
 	"bufio"
-	"fmt"
-	"log"
-	"os"
-	"strconv"
-	"time"
-	// "bytes"
 	"encoding/json"
 	"io/ioutil"
+	"log"
 	"net/http"
+	"os"
+	"strings"
+	"time"
 )
 
 // Represents the dfference between an AcerStatus and a SyncthingStatus
@@ -27,7 +25,10 @@ type BackupStatus struct {
 }
 
 type AcerStatus struct {
-	TimeStamp string
+	Title      string
+	DateString string
+	TimeString string
+	// TimeStamp  string
 	FileCount int32
 	ByteCount int64
 }
@@ -77,14 +78,16 @@ func GetBackupStatus() (*BackupStatus, error) {
 
 	syncthingStatus, err1 := GetSyncthingStatus()
 	if err1 == nil {
+		// fmt.Printf("syncthingStatus ==> %v\n", syncthingStatus)
 		backupStatus.BackedUpFiles = syncthingStatus.LocalFiles
 		backupStatus.BackedUpBytes = syncthingStatus.LocalBytes
 	}
 	acerStatus, err2 := GetAcerStatus()
 	if err2 == nil {
+		// fmt.Printf("acerStatus ==> %v\n", acerStatus)
 		backupStatus.AcerFiles = acerStatus.FileCount
 		backupStatus.AcerBytes = acerStatus.ByteCount
-		backupStatus.AcerTimeStamp = acerStatus.TimeStamp
+		backupStatus.AcerTimeStamp = acerStatus.TimeString + ", " + acerStatus.DateString + " " + configuration.AcerTimeZone
 		if err1 == nil {
 			backupStatus.MissingFiles = backupStatus.AcerFiles - backupStatus.BackedUpFiles
 			backupStatus.MissingBytes = backupStatus.AcerBytes - backupStatus.BackedUpBytes
@@ -112,46 +115,44 @@ func GetAcerStatus() (*AcerStatus, error) {
 	acerStatus := AcerStatus{
 		FileCount: -1, ByteCount: -1,
 	}
+	var builder strings.Builder
+	// Remainder of the input file.
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		line := scanner.Text()
-		if len(acerStatus.TimeStamp) == 0 {
-			fmt.Println("==> found timestamp: " + line)
-			acerStatus.TimeStamp = line
-		} else if acerStatus.FileCount == -1 {
-			fmt.Println("==> found filecount: " + line)
-			i64, err := strconv.ParseInt(line, 10, 32)
-			if err != nil {
-				log.Printf("ERROR: parsing acerStatus.FileCount from %s: %s\n", line, err)
-				return nil, err
-			}
-			acerStatus.FileCount = int32(i64)
-		} else if acerStatus.ByteCount == -1 {
-			fmt.Println("==> found bytecount: " + line)
-			i64, err := strconv.ParseInt(line, 10, 64)
-			if err != nil {
-				log.Printf("ERROR: parsing acerStatus.ByteCount from %s: %s\n", line, err)
-				return nil, err
-			}
-			acerStatus.ByteCount = i64
+		if len(acerStatus.Title) == 0 {
+			acerStatus.Title = line
+		} else if len(acerStatus.DateString) == 0 {
+			acerStatus.DateString = line
+		} else if len(acerStatus.TimeString) == 0 {
+			acerStatus.TimeString = line
 		} else {
-			break
+			builder.WriteString(line)
 		}
 	}
+	stringData := builder.String()
+	syncthingStatus := SyncthingStatus{}
+	err = json.Unmarshal([]byte(stringData), &syncthingStatus)
+	if err != nil {
+		log.Printf("ERROR: AcerFile json.Unmarshal: %s\n", err)
+		log.Printf("ERROR: AcerFile api response: " + stringData)
+		syncthingStatus.LocalFiles = -1
+		syncthingStatus.LocalBytes = -1
+		return nil, err
+	}
+	acerStatus.FileCount = syncthingStatus.LocalFiles
+	acerStatus.ByteCount = syncthingStatus.LocalBytes
 	// TODO check all fields were present in the input file
-	fmt.Printf("==> %s, %d, %d\n", acerStatus.TimeStamp, acerStatus.FileCount, acerStatus.ByteCount)
 	return &acerStatus, nil
 }
 
-// The date/time string read from the acer status file is like "2019 3 21 10:05 pm"
+// The date/time string read from the acer status file is like
+// "03:04 PM, Mon 02/01/2006 MST"
 // Parse this into a golang time struct, for use in comparison
 func parseAcerTimeStamp(acerDateTime string) (*time.Time, error) {
-	timeString := acerDateTime + " " + configuration.AcerTimeZone
-	fmt.Printf("==> parsing acerTimeStamp %s\n", timeString)
-	// TODO this will change once I determine the correct input format
-	time, err := time.Parse(ACER_TIME_FORMAT, timeString)
+	time, err := time.Parse(ACER_TIME_FORMAT, acerDateTime)
 	if err != nil {
-		log.Printf("ERROR: parsing acerTimeStamp %s: %s\n", timeString, err)
+		log.Printf("ERROR: parsing acerTimeStamp %s: %s\n", acerDateTime, err)
 		return nil, err
 	}
 	return &time, nil
@@ -164,29 +165,29 @@ func GetSyncthingStatus() (*SyncthingStatus, error) {
 	client := &http.Client{}
 	request, err := http.NewRequest("GET", endpoint, nil)
 	if err != nil {
-		log.Printf("ERROR: http.NewRequest: %s\n", err)
+		log.Printf("ERROR: SyncthingStatus http.NewRequest: %s\n", err)
 		return nil, err
 	}
 	request.Header.Set("X-API-Key", configuration.SyncApiKey)
 	response, err := client.Do(request)
 	if err != nil {
-		log.Printf("ERROR: http.Client.Do-request: %s\n", err)
+		log.Printf("ERROR: SyncthingStatus http.Client.Do-request: %s\n", err)
 		return nil, err
 	}
 	defer response.Body.Close()
 	data, err := ioutil.ReadAll(response.Body)
 	if err != nil {
-		log.Printf("ERROR: ioutil.ReadAll: %s\n", err)
+		log.Printf("ERROR: SyncthingStatus ioutil.ReadAll: %s\n", err)
 		return nil, err
 	}
 	syncthingStatus := SyncthingStatus{}
 	err = json.Unmarshal(data, &syncthingStatus)
 	if err != nil {
-		log.Printf("ERROR: json.Unmarshal: %s\n", err)
+		log.Printf("ERROR: SyncthingStatus json.Unmarshal: %s\n", err)
+		log.Printf("ERROR: syncthing api response: " + string(data))
 		syncthingStatus.LocalFiles = -1
 		syncthingStatus.LocalBytes = -1
 		return nil, err
 	}
-	fmt.Printf("syncthingStatus==> %v\n", syncthingStatus)
 	return &syncthingStatus, nil
 }
