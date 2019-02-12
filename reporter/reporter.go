@@ -40,6 +40,9 @@ func main() {
 	log.Println("STARTING ...")
 	ConfigurationLoad()
 
+	GetSyncthingStatus()
+	GetAcerStatus()
+
 	// fmt.Println(configuration.Port)
 	// fmt.Println(configuration.DocRoot)
 	// fmt.Println(configuration.AssetsRoot)
@@ -80,7 +83,13 @@ func CheckDie(e error) {
  - report email period in hours [24]
 */
 type Configuration struct {
-	Port         string
+	DialTimeout     int
+	Port            string
+	AcerFilePath    string
+	SyncApiEndpoint string
+	SyncApiKey      string
+	SyncFolderId    string
+
 	DocRoot      string
 	AssetsRoot   string
 	CheckHours   int
@@ -147,7 +156,7 @@ func HomePage(w http.ResponseWriter, r *http.Request) {
 // Get preferred outbound ip of this machine
 // Ref: https://stackoverflow.com/a/37382208/1402287
 func getOutboundIP() net.IP {
-	// Try for up to 10 seconds before quitting
+	// Try for up to DialTimeout seconds before quitting
 	attempts := 0
 	for {
 		conn, err := net.Dial("udp", "8.8.8.8:80")
@@ -157,7 +166,7 @@ func getOutboundIP() net.IP {
 			return localAddr.IP
 		}
 		attempts = attempts + 1
-		if attempts >= 10 {
+		if attempts >= configuration.DialTimeout {
 			log.Fatal("FATAL: ", err)
 		}
 		log.Print("failed to connect, trying again in 1 second; ", err)

@@ -1,5 +1,10 @@
 {
+  "DialTimeout": 10,
   "Port": "8090",
+  "AcerFilePath": "/Users/dweiss/Documents/AndroidStudioProjects/syncbox/reporter/testAcerFile.txt",  
+  "SyncApiEndpoint": "http://127.0.0.1:8384/rest/db/status",
+  "SyncApiKey": "wqKW5HpZguLU2JXhexYf9oV9buXGMFm7",
+  "SyncFolderId": "w7vhz-txgya",
   "DocRoot": "./",
   "AssetsRoot": "./assets",
   "CheckHours": 24,
