@@ -42,29 +42,14 @@ func main() {
 	log.Println("STARTING ...")
 	ConfigurationLoad()
 
-	backupStatus, err := GetBackupStatus()
-	if err == nil {
-		fmt.Printf("backupStatus ==> %v\n", backupStatus)
-	} else {
-		log.Println("error from GetBackupStatus " + err.Error())
-	}
-
-	// fmt.Println(configuration.Port)
-	// fmt.Println(configuration.DocRoot)
-	// fmt.Println(configuration.AssetsRoot)
-	// fmt.Println(configuration.CheckHours)
-	// fmt.Println(configuration.EmailHours)
-	// fmt.Println(configuration.EmailTargets)
-	// fmt.Println(configuration.HistoryFile)
-
 	// saveConfiguration()
 	router := mux.NewRouter().StrictSlash(true)
 
 	// Ref: https://gowebexamples.com/static-files/
 	log.Println("serving static assets from: " + configuration.AssetsRoot)
 
-	staticHhandler := http.FileServer(http.Dir(configuration.AssetsRoot))
-	router.PathPrefix(STATIC_DIR).Handler(http.StripPrefix(STATIC_DIR, staticHhandler))
+	staticHandler := http.FileServer(http.Dir(configuration.AssetsRoot))
+	router.PathPrefix(STATIC_DIR).Handler(http.StripPrefix(STATIC_DIR, staticHandler))
 	// Test:  curl -s http://localhost:8090/static/test.txt
 
 	router.HandleFunc("/", HomePage)
@@ -129,34 +114,37 @@ func ConfigurationSave() {
 }
 
 type HomePageVariables struct {
-	LocalServer   bool
-	Date          string
-	Time          string
-	EmailerResult string
+	LocalServer bool
+	Error       string
+	Status      BackupStatus
 }
 
 func HomePage(w http.ResponseWriter, r *http.Request) {
-	now := time.Now()
-	emailerResult := "SendReport OK"
-	if err := SendReport(); err == nil {
-		log.Println(emailerResult)
-	} else {
-		emailerResult = err.Error()
-	}
-	HomePageVars := HomePageVariables{
-		LocalServer:   true,
-		Date:          now.Format("02-01-2006"),
-		Time:          now.Format("15:04:05"),
-		EmailerResult: emailerResult,
-	}
+	// now := time.Now()
+	// emailerResult := "SendReport OK"
+	// if err := SendReport(); err == nil {
+	// 	log.Println(emailerResult)
+	// } else {
+	// 	emailerResult = err.Error()
+	// }
 	// Ref: https://gowebexamples.com/templates/
+
+	homePageVars := HomePageVariables{
+		LocalServer: true,
+	}
+	backupStatus, err := GetBackupStatus()
+	if err != nil {
+		homePageVars.Error = err.Error()
+	} else {
+		homePageVars.Status = *backupStatus
+	}
 	t, err := template.ParseFiles("home.html")
 	if err != nil {
-		log.Print("template parsing error: ", err)
+		log.Print("ERROR: HomePage template parsing error: ", err)
 	}
-	err = t.Execute(w, HomePageVars)
+	err = t.Execute(w, homePageVars)
 	if err != nil {
-		log.Print("template executing error: ", err)
+		log.Print("ERROR: HomePage template executing error: ", err)
 	}
 }
 
@@ -176,7 +164,7 @@ func getOutboundIP() net.IP {
 		if attempts >= configuration.DialTimeout {
 			log.Fatal("FATAL: ", err)
 		}
-		log.Print("failed to connect, trying again in 1 second; ", err)
+		log.Print("ERROR: failed to net.Dial, trying again in 1 second; ", err)
 		time.Sleep(1 * time.Second)
 	}
 }
