@@ -24,3 +24,4 @@ The reporter subproject consists of;
 - a local installation of purecss.io, by default this is expected to be installed at
   ./static/pure-release-1.0.0/ (in the working directory of reporter) but it is configurable
 
+https://gowebexamples.com/templates/

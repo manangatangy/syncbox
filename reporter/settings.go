@@ -6,7 +6,7 @@ package main
 import (
 	// "bufio"
 	// "encoding/json"
-	// "errors"
+	"errors"
 	"fmt"
 	// "github.com/gorilla/mux"
 	"html/template"
@@ -24,9 +24,9 @@ import (
 )
 
 type SettingsPageVariables struct {
-	LocalServer bool
-	Error       string
-	Settings    []Setting
+	LocalServer    bool
+	SuccessMessage string
+	Settings       []Setting
 }
 
 type Setting struct {
@@ -35,43 +35,66 @@ type Setting struct {
 	Type        string
 	Value       string
 	Readonly    bool
+	Errored     string
 	Description string
+	// The Validator takes a new value (as the entered string), validates it and stores it
+	// as the correct type in a field in the config.  If the validation fails, then the
+	// storage is not performed and an error is returned.
+	Validator func(newValue string, config Configuration) error
 }
 
-// Create a Settings list from the current Configuration values.
-func readSettingsFromConfig() []Setting {
+// Create a Settings list from the current Configuration values
+// with the Description set and the Errored empty.
+func getCurrentSettings() []Setting {
 	var settings []Setting
 	settings = append(settings, Setting{
 		Id: "DialTimeout", Name: "Connection Timeout", Type: "number",
 		Value: strconv.Itoa(configuration.DialTimeout), Description: "Retry count for the initial connection",
+		Validator: func(newValue string, config Configuration) error {
+			var err error
+			config.DialTimeout, err = strconv.Atoi(newValue)
+			if config.DialTimeout < 100 || config.DialTimeout > 10000 {
+				err = errors.New("out of range (100,10000)")
+			}
+			return err
+		},
 	})
 	settings = append(settings, Setting{
-		Id: "Port", Name: "Server Port", Type: "text", Readonly: true,
+		Id: "Port", Name: "Server Port", Type: "text",
 		Value: configuration.Port, Description: "Reporter server listening port",
+		Readonly: true,
 	})
 	settings = append(settings, Setting{
 		Id: "AcerFilePath", Name: "Acer File Path", Type: "text",
 		Value: configuration.AcerFilePath, Description: "Location of file containing AcerStatus",
+		Validator: func(newValue string, config Configuration) error {
+			config.AcerFilePath = newValue
+			return nil
+		},
 	})
 	settings = append(settings, Setting{
 		Id: "SyncFolderId", Name: "Syncthing Folder Id", Type: "text",
 		Value: configuration.SyncFolderId, Description: "Identifies folder being monitored (from Syncthing-GUI)",
+		Validator: func(newValue string, config Configuration) error {
+			config.SyncFolderId = newValue
+			return nil
+		},
 	})
 	settings = append(settings, Setting{
 		Id: "SyncApiKey", Name: "Syncthing API Key", Type: "text",
 		Value: configuration.SyncApiKey, Description: "Authorises API access (from Syncthing-GUI)",
+		Validator: func(newValue string, config Configuration) error {
+			config.SyncApiKey = newValue
+			return nil
+		},
 	})
-	// settings = append(settings, Setting{
-	// 	Id: "SyncApiKey", Name: "Syncthing", Type: "text",
-	// 	Value: configuration.Port, Description: "",
-	// })
 	return settings
 }
 
 // Create a Settings list with values taken from the Form (or the Configuration by default)
-// Use the readSettingsFromConfig function because it sets the other Setting fields.
+// Use the getCurrentSettings function because it sets the other Setting fields.
 func getSettingsFromForm(Form url.Values) []Setting {
-	settings := readSettingsFromConfig()
+	settings := getCurrentSettings()
 	for key, vals := range Form {
 		var val string
 		if len(vals) != 0 {
@@ -106,19 +129,37 @@ func SettingsPage(w http.ResponseWriter, r *http.Request) {
 	}
 	fmt.Printf("SettingsPage method ===> %v\n", r.Method)
 	if r.Method != http.MethodPost {
-		// This is the getting of the field values.
-		settingsPageVars.Settings = readSettingsFromConfig()
+		// http.MethodGet: Place the current config values into the page.
+		settingsPageVars.Settings = getCurrentSettings()
 	} else {
-		// This is the setting of the field values.
+		// http.MethodPost:
 		r.ParseForm()
 		if r.Form.Get("submit") == "yes" {
 			settingsPageVars.Settings = getSettingsFromForm(r.Form)
-			// for k, v := range r.Form {
-			// 	fmt.Printf("FORM ===> %s = %s\n", k, v)
-			// }
-			settingsPageVars.Error = "some error !!! (not really)"
+			// Validate/set the new values from the settings into a temp config.
+			config := ConfigurationLoad()
+			success := true
+			for _, setting := range settingsPageVars.Settings {
+				// Validate the new value (val).  An error is indicated by placing
+				// error details in the Description field and setting Errored
+				if !setting.Readonly {
+					if err := setting.Validator(setting.Value, config); err != nil {
+						setting.Description = err.Error()
+						setting.Errored = "errored"
+						success = false
+					}
+				}
+				fmt.Printf("setting after validating ==> %v\n", setting)
+			}
+			fmt.Printf("config after validating ==> %v\n", config)
+			if success {
+				// If all the settings are valid, then save the configuration, and
+				// replace the current global configuration value.
+				// TODO
+				settingsPageVars.SuccessMessage = "Settings updated"
+			}
 		} else if r.Form.Get("reset") == "yes" {
-			settingsPageVars.Settings = readSettingsFromConfig()
+			settingsPageVars.Settings = getCurrentSettings()
 		}
 	}
 

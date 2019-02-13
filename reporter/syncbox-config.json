@@ -1,0 +1,18 @@
+{
+  "DialTimeout": 10,
+  "Port": "8090",
+  "AcerFilePath": "AcerPC-Sync-Status-Report.sample.txt",  
+  "AcerTimeZone": "AEDT",
+  "SyncApiEndpoint": "http://192.168.0.44:8384/rest/db/status",
+  "SyncApiKey": "GSwL53QQ96gZWJU5DpDTnqzJTzi2bn4K",
+  "SyncFolderId": "zzecm-apamx",
+  "DocRoot": "./",
+  "AssetsRoot": "./assets",
+  "CheckHours": 24,
+  "EmailHours": 24,
+  "EmailTargets": [
+    "david.x.weiss@gmail.com",
+    "dummy@stupid"
+  ],
+  "HistoryFile": "./history.json"
+}

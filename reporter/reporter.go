@@ -40,7 +40,7 @@ func main() {
 	}
 
 	log.Println("STARTING ...")
-	ConfigurationLoad()
+	configuration = ConfigurationLoad()
 
 	// saveConfiguration()
 	router := mux.NewRouter().StrictSlash(true)
@@ -95,20 +95,21 @@ type Configuration struct {
 var configPath string
 var configuration Configuration
 
-func ConfigurationLoad() {
+func ConfigurationLoad() Configuration {
 	// Load the config (from configPath) making it globally available.
 	log.Println("config path: ", configPath)
 	content, err := ioutil.ReadFile(configPath)
 	CheckDie(err)
 	// Ref: https://blog.golang.org/json-and-go
-	configuration = Configuration{}
-	err = json.Unmarshal(content, &configuration)
+	config := Configuration{}
+	err = json.Unmarshal(content, &config)
 	CheckDie(err)
 	log.Println("configuration loaded")
+	return config
 }
 
-func ConfigurationSave() {
-	content, err := json.MarshalIndent(configuration, "", "  ")
+func ConfigurationSave(config Configuration) {
+	content, err := json.MarshalIndent(config, "", "  ")
 	CheckDie(err)
 	err = ioutil.WriteFile(configPath, content, 0666)
 	CheckDie(err)
