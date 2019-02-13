@@ -54,6 +54,7 @@ func main() {
 
 	router.HandleFunc("/", HomePage)
 	router.HandleFunc("/history", HistoryPage)
+	router.HandleFunc("/settings", SettingsPage)
 
 	log.Printf("listening at: %s:%s\n", getOutboundIP(), configuration.Port)
 	log.Fatal("FATAL: ", http.ListenAndServe(":"+configuration.Port, router))
@@ -74,20 +75,21 @@ func CheckDie(e error) {
  - report email period in hours [24]
 */
 type Configuration struct {
-	DialTimeout     int
+	DialTimeout     int // Retry count for the initial connection.
 	Port            string
-	AcerFilePath    string
-	AcerTimeZone    string
-	SyncApiEndpoint string
-	SyncApiKey      string
-	SyncFolderId    string
+	AcerFilePath    string // Location of file containing AcerStatus, read on demand or file-change.
+	AcerTimeZone    string // Applied to AcerStatus date/time strings.
+	SyncApiEndpoint string // Where syncthing status is obtained from.
+	SyncApiKey      string // Form the syncthing-gui advanced page.
+	SyncFolderId    string // As above.
 
 	DocRoot      string
 	AssetsRoot   string
 	CheckHours   int
 	EmailHours   int
 	EmailTargets []string
-	HistoryFile  string
+	HistoryFile  string // Where the BackupStatus records are appended to.
+
 }
 
 var configPath string

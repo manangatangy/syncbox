@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title>Settings</title>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+
+        {{if .LocalServer}}
+            <link rel="stylesheet" type="text/css" href="static/pure-release-1.0.0/pure.css">
+            <link rel="stylesheet" type="text/css" href="static/local.css">
+        {{end}}
+        <style type="text/css">
+            .margin-auto {
+                margin: auto;
+            }
+            .is-center {
+                text-align: center;
+            }
+            .text-left {
+                text-align: left;
+            }
+            .text-right {
+                text-align: right;
+            }
+            body {
+                /* font-family: 'Space Mono', monospace; */
+                font-size: 16px;
+                margin-left: 15%;
+                margin-right: auto;
+                width: auto;
+            }            
+        </style>        
+    </head>
+    <body >
+        <form class="pure-form pure-form-aligned" method="POST">
+            <fieldset>
+                <div class="pure-controls">
+                    <h4>Reporter Settings</h4>
+                    {{if ne .Error ""}}
+                        <h2>ERROR: {{.Error}}</h2>
+                    {{end}}
+                </div>
+                {{range .Settings}}
+                    <div class="pure-control-group">
+                            <label for="{{.Id}}">{{.Name}}</label>
+                            <input class="pure-input-1-2" id="{{.Id}}" name="{{.Id}}" type="{{.Type}}" 
+                                value="{{.Value}}" {{if .Readonly}}readonly{{end}}
+                            >
+                            <span class="pure-form-message-inline">{{.Description}}</span>
+                        </div>
+                {{end}}
+                <div class="pure-controls">
+                    <button type="submit" class="pure-button pure-button-primary" name="submit" value="yes">Submit</button>
+                    <button type="submit" class="pure-button pure-button-primary" name="reset" value="yes">Reset</button>
+                </div>
+            </fieldset>
+        </form>
+    </body>
+</html>
