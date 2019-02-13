@@ -1,3 +1,20 @@
+https://tour.golang.org/methods/4
+
+https://tour.golang.org/methods/1
+
+https://dave.cheney.net/2017/04/29/there-is-no-pass-by-reference-in-go
+
+https://www.reddit.com/r/golang/comments/5osmhk/does_anyone_have_a_good_reference_for_go_passby/
+
+https://codeburst.io/pass-by-reference-in-go-demystified-81e0e8dfa2ad
+
+https://www.openmymind.net/Things-I-Wish-Someone-Had-Told-Me-About-Go/
+
+
+
+
+
+
 type Animal int
 
 const (
