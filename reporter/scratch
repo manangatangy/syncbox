@@ -10,12 +10,15 @@ https://codeburst.io/pass-by-reference-in-go-demystified-81e0e8dfa2ad
 
 https://www.openmymind.net/Things-I-Wish-Someone-Had-Told-Me-About-Go/
 
+https://medium.com/@move4mobile/the-state-of-cross-platform-mobile-development-in-2019-da40fc2435d
+
+https://www.spectator.co.uk/2016/07/decline-west-hundred-years/
 
 
 
-
-
-type Animal int
+2019-02-14 19:42:14+11:00	written to simmon.log
+2019/02/11 21:34:46		written to reporter.log
+2006-01-02 15:04:00		written to history.json
 
 const (
 	Unknown Animal = iota
