@@ -1,3 +1,3 @@
-package main
+package mail
 
 // nothing yet

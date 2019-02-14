@@ -1,8 +1,5 @@
 package main
 
-// support logging /home/pi/syncbox/reporter/reporter -logfile /home/pi/syncbox/reporter/reporter.log
-
-// Refs: https://golang.org/pkg/
 import (
 	"bufio"
 	"encoding/json"
@@ -17,14 +14,14 @@ import (
 	"os/exec"
 	"regexp"
 	"reporter/config"
+	"reporter/settings"
+	"reporter/status"
 	"strings"
 	"time"
 )
 
 const (
-	STATIC_DIR         = "/static/"                     // prefix for urls withing templated html
-	ACER_TIME_FORMAT   = "03:04 PM, Mon 02/01/2006 MST" // As found on AcerDataFile
-	REPORT_TIME_FORMAT = "2006-01-02 15:04:00"          // As written to reports
+	STATIC_DIR = "/static/" // prefix for urls withing templated html
 )
 
 func main() {
@@ -53,8 +50,8 @@ func main() {
 	// Test:  curl -s http://localhost:8090/static/test.txt
 
 	router.HandleFunc("/", HomePage)
-	router.HandleFunc("/history", HistoryPage)
-	router.HandleFunc("/settings", SettingsPage)
+	router.HandleFunc("/history", status.HistoryPage)
+	router.HandleFunc("/settings", settings.SettingsPage)
 
 	port := config.Get().Port
 	log.Printf("listening at: %s:%s\n", getOutboundIP(), port)
@@ -70,7 +67,7 @@ func CheckDie(e error) {
 type HomePageVariables struct {
 	LocalServer bool
 	Error       string
-	Status      BackupStatus
+	Status      status.BackupStatus
 }
 
 func HomePage(w http.ResponseWriter, r *http.Request) {
@@ -86,7 +83,7 @@ func HomePage(w http.ResponseWriter, r *http.Request) {
 	homePageVars := HomePageVariables{
 		LocalServer: true,
 	}
-	backupStatus, err := GetBackupStatus()
+	backupStatus, err := status.GetBackupStatus()
 	if err != nil {
 		homePageVars.Error = err.Error()
 	} else {
@@ -95,7 +92,7 @@ func HomePage(w http.ResponseWriter, r *http.Request) {
 	t, err := template.ParseFiles("home.html")
 	if err != nil {
 		log.Print("ERROR: HomePage template parsing error: ", err)
-	} 
+	}
 	if err = t.Execute(w, homePageVars); err != nil {
 		log.Print("ERROR: HomePage template executing error: ", err)
 	}

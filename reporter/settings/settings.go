@@ -1,4 +1,4 @@
-package main
+package settings
 
 import (
 	"errors"
@@ -122,7 +122,7 @@ func SettingsPage(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	t, err := template.ParseFiles("settings.html")
+	t, err := template.ParseFiles("settings/settings.html")
 	if err != nil {
 		log.Print("ERROR: SettingsPage template parsing error: ", err)
 	}

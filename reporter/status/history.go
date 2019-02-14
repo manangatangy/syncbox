@@ -1,4 +1,4 @@
-package main
+package status
 
 import (
 	"bufio"
@@ -39,7 +39,7 @@ func HistoryFetch(w io.Writer, historyPageVariables HistoryPageVariables) error 
 	history, err1 := ReadStatusHistory()
 	historyPageVariables.History = history
 	historyPageVariables.Error = err1
-	t, err2 := template.ParseFiles("history.html")
+	t, err2 := template.ParseFiles("status/history.html")
 	if err2 != nil {
 		log.Print("ERROR: HistoryFetch template parsing error: ", err2)
 	}

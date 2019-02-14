@@ -1,4 +1,4 @@
-package main
+package status
 
 import (
 	"bufio"
@@ -10,6 +10,11 @@ import (
 	"reporter/config"
 	"strings"
 	"time"
+)
+
+const (
+	ACER_TIME_FORMAT   = "03:04 PM, Mon 02/01/2006 MST" // As found on AcerDataFile
+	REPORT_TIME_FORMAT = "2006-01-02 15:04:00"          // As written to reports
 )
 
 // Represents the dfference between an AcerStatus and a SyncthingStatus

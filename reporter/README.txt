@@ -27,7 +27,10 @@ The reporter subproject consists of;
 Project structure
 reporter/
     home.html
-    config.json
+    local.css
+    config.json         (default runtime config file)
+    reporter.go         (entry point)
+    reporter.log        (default runtime log file)
     config/
         config.go
     status/

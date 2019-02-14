@@ -1,3 +1,5 @@
+package mail
+
 // ref: https://stackoverflow.com/questions/2591755/how-to-send-html-email-using-linux-command-line
 
 // Ref: https://unix.stackexchange.com/questions/15405/how-do-i-send-html-email-using-linux-mail-command is a
@@ -10,7 +12,6 @@
 // When the file changes, then retrieve a current BackupStatus from
 // ???, create a HistoryRecord from the two, and send it using the Emailer
 // and also add to the HistoryArchive.
-package main
 
 // Refs: https://golang.org/pkg/
 import (
