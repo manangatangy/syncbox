@@ -14,6 +14,7 @@ import (
 	"os/exec"
 	"regexp"
 	"reporter/config"
+	"reporter/logging"
 	"reporter/settings"
 	"reporter/status"
 	"strings"
@@ -52,6 +53,7 @@ func main() {
 	router.HandleFunc("/", HomePage)
 	router.HandleFunc("/history", status.HistoryPage)
 	router.HandleFunc("/settings", settings.SettingsPage)
+	router.HandleFunc("/logging", logging.LoggingPage)
 
 	port := config.Get().Port
 	log.Printf("listening at: %s:%s\n", getOutboundIP(), port)

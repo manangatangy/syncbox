@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title>Logging</title>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        {{if .LocalServer}}
+            <link rel="stylesheet" type="text/css" href="static/pure-release-1.0.0/pure.css">
+            <link rel="stylesheet" type="text/css" href="static/local.css">
+        {{end}}
+        <style type="text/css">
+            .margin-auto {
+                margin: auto;
+            }
+            .is-center {
+                text-align: center;
+            }
+            .text-left {
+                text-align: left;
+            }
+            .text-right {
+                text-align: right;
+            }
+            .logging-table {
+                font-family: 'Space Mono', monospace;
+                font-size: 16px;
+                margin-left: auto;
+                margin-right: auto;
+                width: 95%;
+            }
+            .logging-table th {
+                padding-top: 0.25em;
+                padding-bottom: 0.25em;
+            }
+            .logging-table td {
+                padding-top: 0.25em;
+                padding-bottom: 0.25em;
+            }
+        </style>        
+    </head>
+    <body class="is-center">    
+        
+        <form class="pure-form pure-form-aligned" method="POST">
+            <fieldset>
+                <div class="pure-controls">
+                    <h2>Log</h2>
+                </div>
+                <div class="pure-control-group">
+                    <label for="StartDateId">Start Date/Time Prefix</label>
+                    <input class="pure-input-1-3" id="StartDateId" name="StartDateId" type="text" value="{{.StartDate}}">
+                    <span class="pure-form-message-inline">Show log records from this value onwards</span>
+                </div>
+                <div class="pure-controls">
+                    <button type="submit" class="pure-button pure-button-primary" name="retrieve" value="yes">Retrieve Records</button>
+                </div>
+                <div class="pure-controls">
+                    {{if ne .Message ""}}
+                        <h3>{{.Message}}</h3>
+                    {{end}}
+                </div>    
+            </fieldset>
+        </form>
+                
+
+        <table class="logging-table pure-table-striped text-left">
+            <tbody class="text-left">
+                {{range .Log}}
+                    <tr>
+                        <td>{{.}}</td>
+                    </tr>
+                {{end}}
+            </tbody>
+        </table>    
+    </body>
+</html>
