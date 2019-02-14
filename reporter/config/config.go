@@ -1,12 +1,7 @@
 package config
 
-// support logging /home/pi/syncbox/reporter/reporter -logfile /home/pi/syncbox/reporter/reporter.log
-
-// Refs: https://golang.org/pkg/
 import (
-	// "bufio"
 	"encoding/json"
-	// "flag"
 	"errors"
 	"io/ioutil"
 	"log"

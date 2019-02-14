@@ -92,52 +92,34 @@ func getSettings(c config.Configuration) []Setting {
 	return settings
 }
 
-// Create a Settings list with values taken from the current Configuration,
-// and then with values over written by any values supplied by the Form.
-func getSettingsFromForm(Form url.Values) []Setting {
-	settings := getSettings(config.Get())
-	for key, vals := range Form {
-		var val string
-		if len(vals) != 0 {
-			val = vals[0]
-		}
-		// fmt.Printf("===> FORM returned %s ===> %s ==> %s\n", key, vals, val)
-		for s := 0; s < len(settings); s++ {
-			setting := &settings[s]
-			// setting := settings[s]
-			if setting.Id == key {
-				// fmt.Printf("===> USING form value %s for key %s\n", val, key)
-				setting.Value = val
-				break
-			}
-		}
-	}
-	return settings
+// Apply values from the Form to the corresponding Setting
+func applyValuesFromForm(settings *[]Setting, Form url.Values) {
 }
 
 func SettingsPage(w http.ResponseWriter, r *http.Request) {
 	settingsPageVars := SettingsPageVariables{
 		LocalServer: true,
 	}
+	// Fetch the current config values into the page. For GET (initial page load)
+	// and for (POST, "reset") this will be the values 'returned' back to the page.
+	settingsPageVars.Settings = getSettings(config.Get())
 	fmt.Printf("SettingsPage method ===> %v\n", r.Method)
-	if r.Method != http.MethodPost {
-		// http.MethodGet: Place the current config values into the page.
-		settingsPageVars.Settings = getSettings(config.Get())
-	} else {
-		// http.MethodPost:
+	if r.Method == http.MethodPost {
 		r.ParseForm()
 		if r.Form.Get("submit") == "yes" {
-			settingsPageVars.Settings = getSettingsFromForm(r.Form)
-			// TODO the getSettingsFromForm should be applyValuesFromForm(*[]Setting)
-
-			// Validate/set the new values from the settings into a local config.
-			c := config.Get()
+			c := config.Get() // Use a temp local configuration
 			success := true
 			for s := 0; s < len(settingsPageVars.Settings); s++ {
-				// Validate the new value (val), updating the local config. Indicate error
-				// by placing error details in the Description field and setting Errored
 				setting := &settingsPageVars.Settings[s]
+				// Only check writeable settings.
+				// If there is a new value for the setting in the form, then store it in
+				// the setting (where it can be sent back to the page) and validate it,
+				// updating the local config with the new value. Indicate an error by
+				// placing error details in the Description field and setting Errored flag.
 				if !setting.Readonly {
+					// could also use "if val, ok := m[key]; ok" to test for contains
+					// fmt.Printf("===> USING form value %s for key %s\n", val, key)
+					setting.Value = r.Form.Get(setting.Id)
 					if err := setting.Validator(setting.Value, &c); err != nil {
 						setting.Description = err.Error()
 						setting.Errored = "errored"
@@ -155,8 +137,6 @@ func SettingsPage(w http.ResponseWriter, r *http.Request) {
 					settingsPageVars.SuccessMessage = "Error saving config: " + err.Error()
 				}
 			}
-		} else if r.Form.Get("reset") == "yes" {
-			settingsPageVars.Settings = getSettings(config.Get())
 		}
 	}
 
