@@ -1,27 +1,13 @@
 package main
 
-// support logging /home/pi/syncbox/reporter/reporter -logfile /home/pi/syncbox/reporter/reporter.log
-
-// Refs: https://golang.org/pkg/
 import (
-	// "bufio"
-	// "encoding/json"
 	"errors"
 	"fmt"
-	// "github.com/gorilla/mux"
 	"html/template"
-	// "io/ioutil"
 	"log"
-	// "net"
 	"net/http"
-	"net/url"
 	"reporter/config"
 	"strconv"
-	// "os"
-	// "os/exec"
-	// "regexp"
-	// "strings"
-	// "time"
 )
 
 type SettingsPageVariables struct {
@@ -90,10 +76,6 @@ func getSettings(c config.Configuration) []Setting {
 		},
 	})
 	return settings
-}
-
-// Apply values from the Form to the corresponding Setting
-func applyValuesFromForm(settings *[]Setting, Form url.Values) {
 }
 
 func SettingsPage(w http.ResponseWriter, r *http.Request) {

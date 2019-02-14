@@ -95,9 +95,8 @@ func HomePage(w http.ResponseWriter, r *http.Request) {
 	t, err := template.ParseFiles("home.html")
 	if err != nil {
 		log.Print("ERROR: HomePage template parsing error: ", err)
-	}
-	err = t.Execute(w, homePageVars)
-	if err != nil {
+	} 
+	if err = t.Execute(w, homePageVars); err != nil {
 		log.Print("ERROR: HomePage template executing error: ", err)
 	}
 }
@@ -122,6 +121,8 @@ func getOutboundIP() net.IP {
 		time.Sleep(1 * time.Second)
 	}
 }
+
+// ------------------------------------------
 
 func execAndProcessError(handleError bool,
 	w http.ResponseWriter, c string, arg ...string) (string, error) {
