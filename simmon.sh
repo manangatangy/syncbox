@@ -44,8 +44,9 @@ echoedText=""
 function log {
     # Echo to stdout, which is prob redirected
     # Only echo if the arg is different from the last.
+    # Format is "2019-02-14 19:42:14+11:00"
     if [[ "$echoedText" != "$1" ]] ; then
-        echo "$(date --iso-8601=minutes) $1"
+        echo "$(date --rfc-3339=seconds) $1"
         echoedText="$1"
     fi
 }
