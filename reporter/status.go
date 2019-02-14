@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"reporter/config"
 	"strings"
 	"time"
 )
@@ -87,7 +88,7 @@ func GetBackupStatus() (*BackupStatus, error) {
 		// fmt.Printf("acerStatus ==> %v\n", acerStatus)
 		backupStatus.AcerFiles = acerStatus.FileCount
 		backupStatus.AcerBytes = acerStatus.ByteCount
-		backupStatus.AcerTimeStamp = acerStatus.TimeString + ", " + acerStatus.DateString + " " + configuration.AcerTimeZone
+		backupStatus.AcerTimeStamp = acerStatus.TimeString + ", " + acerStatus.DateString + " " + config.Get().AcerTimeZone
 		if err1 == nil {
 			backupStatus.MissingFiles = backupStatus.AcerFiles - backupStatus.BackedUpFiles
 			backupStatus.MissingBytes = backupStatus.AcerBytes - backupStatus.BackedUpBytes
@@ -106,9 +107,10 @@ func GetBackupStatus() (*BackupStatus, error) {
 // Read the file contents at AcerStatusPath and create a corresponding AcerStatus
 // If an error occurs, it is logged here
 func GetAcerStatus() (*AcerStatus, error) {
-	file, err := os.Open(configuration.AcerFilePath)
+	acerFilePath := config.Get().AcerFilePath
+	file, err := os.Open(acerFilePath)
 	if err != nil {
-		log.Printf("ERROR: opening for read %s: %s\n", configuration.AcerFilePath, err)
+		log.Printf("ERROR: opening for read %s: %s\n", acerFilePath, err)
 		return nil, err
 	}
 	defer file.Close()
@@ -161,14 +163,14 @@ func parseAcerTimeStamp(acerDateTime string) (*time.Time, error) {
 // Read the response from SyncApiEndpoint/SyncFolderId and return a corresponding SyncthingStatus
 // If an error occurs, it is logged here
 func GetSyncthingStatus() (*SyncthingStatus, error) {
-	endpoint := configuration.SyncApiEndpoint + "?folder=" + configuration.SyncFolderId
+	endpoint := config.Get().SyncApiEndpoint + "?folder=" + config.Get().SyncFolderId
 	client := &http.Client{}
 	request, err := http.NewRequest("GET", endpoint, nil)
 	if err != nil {
 		log.Printf("ERROR: SyncthingStatus http.NewRequest: %s\n", err)
 		return nil, err
 	}
-	request.Header.Set("X-API-Key", configuration.SyncApiKey)
+	request.Header.Set("X-API-Key", config.Get().SyncApiKey)
 	response, err := client.Do(request)
 	if err != nil {
 		log.Printf("ERROR: SyncthingStatus http.Client.Do-request: %s\n", err)

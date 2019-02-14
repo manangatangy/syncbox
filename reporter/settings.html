@@ -38,10 +38,7 @@
         <form class="pure-form pure-form-aligned" method="POST">
             <fieldset>
                 <div class="pure-controls">
-                    <h4>Reporter Settings</h4>
-                    {{if ne .SuccessMessage ""}}
-                        <h2>{{.SuccessMessage}}</h2>
-                    {{end}}
+                    <h2>Reporter Settings</h2>
                 </div>
                 {{range .Settings}}
                     <div class="pure-control-group">
@@ -56,6 +53,11 @@
                     <button type="submit" class="pure-button pure-button-primary" name="submit" value="yes">Submit</button>
                     <button type="submit" class="pure-button pure-button-primary" name="reset" value="yes">Reset</button>
                 </div>
+                <div class="pure-controls">
+                    {{if ne .SuccessMessage ""}}
+                        <h3>{{.SuccessMessage}}</h3>
+                    {{end}}
+                </div>    
             </fieldset>
         </form>
     </body>

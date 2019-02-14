@@ -1,7 +1,7 @@
 {
   "DialTimeout": 10,
   "Port": "8090",
-  "AcerFilePath": "AcerPC-Sync-Status-Report.sample.txt",  
+  "AcerFilePath": "AcerPC-Sync-Status-Report.sample.txt",
   "AcerTimeZone": "AEDT",
   "SyncApiEndpoint": "http://127.0.0.1:8384/rest/db/status",
   "SyncApiKey": "wqKW5HpZguLU2JXhexYf9oV9buXGMFm7",

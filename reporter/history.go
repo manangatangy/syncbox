@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"reporter/config"
 )
 
 type HistoryPageVariables struct {
@@ -50,9 +51,10 @@ func HistoryFetch(w io.Writer, historyPageVariables HistoryPageVariables) error 
 }
 
 func ReadStatusHistory() ([]BackupStatus, string) {
-	file, err := os.Open(configuration.HistoryFile)
+	historyPath := config.Get().HistoryFile
+	file, err := os.Open(historyPath)
 	if err != nil {
-		log.Printf("ERROR: opening for read %s: %s\n", configuration.HistoryFile, err)
+		log.Printf("ERROR: opening for read %s: %s\n", historyPath, err)
 		return nil, err.Error()
 	}
 	defer file.Close()
@@ -79,10 +81,10 @@ func SaveStatusToHistory(record BackupStatus) error {
 		return err
 	}
 	line = append(line, '\n')
-	file, err := os.OpenFile(configuration.HistoryFile,
-		os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
+	historyPath := config.Get().HistoryFile
+	file, err := os.OpenFile(historyPath, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
 	if err != nil {
-		log.Printf("ERROR: opening during saveHiSaveStatusToHistorystoryRecord %s: %s\n", configuration.HistoryFile, err)
+		log.Printf("ERROR: opening during saveHiSaveStatusToHistorystoryRecord %s: %s\n", historyPath, err)
 		return err
 	}
 	defer file.Close()

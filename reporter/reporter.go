@@ -10,13 +10,13 @@ import (
 	"fmt"
 	"github.com/gorilla/mux"
 	"html/template"
-	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
 	"os"
 	"os/exec"
 	"regexp"
+	"reporter/config"
 	"strings"
 	"time"
 )
@@ -29,8 +29,8 @@ const (
 
 func main() {
 	// Only -config=cfgpath and -logfile=logpath are supported.
-	flag.StringVar(&configPath, "config", "config.json", "path to configuration file")
-	logFilePath := flag.String("logfile", "", "path to logfile")
+	logFilePath := flag.String("logfile", "", "path to log file")
+	configPath := flag.String("config", "config.json", "path to configuration file")
 	flag.Parse()
 	if *logFilePath != "" {
 		f, err := os.OpenFile(*logFilePath, os.O_APPEND|os.O_CREATE|os.O_RDWR, 0666)
@@ -40,15 +40,15 @@ func main() {
 	}
 
 	log.Println("STARTING ...")
-	configuration = ConfigurationLoad()
+	config.Path(*configPath)
 
 	// saveConfiguration()
 	router := mux.NewRouter().StrictSlash(true)
 
 	// Ref: https://gowebexamples.com/static-files/
-	log.Println("serving static assets from: " + configuration.AssetsRoot)
+	log.Println("serving static assets from: " + config.Get().AssetsRoot)
 
-	staticHandler := http.FileServer(http.Dir(configuration.AssetsRoot))
+	staticHandler := http.FileServer(http.Dir(config.Get().AssetsRoot))
 	router.PathPrefix(STATIC_DIR).Handler(http.StripPrefix(STATIC_DIR, staticHandler))
 	// Test:  curl -s http://localhost:8090/static/test.txt
 
@@ -56,64 +56,15 @@ func main() {
 	router.HandleFunc("/history", HistoryPage)
 	router.HandleFunc("/settings", SettingsPage)
 
-	log.Printf("listening at: %s:%s\n", getOutboundIP(), configuration.Port)
-	log.Fatal("FATAL: ", http.ListenAndServe(":"+configuration.Port, router))
+	port := config.Get().Port
+	log.Printf("listening at: %s:%s\n", getOutboundIP(), port)
+	log.Fatal("FATAL: ", http.ListenAndServe(":"+port, router))
 }
 
 func CheckDie(e error) {
 	if e != nil {
 		log.Fatal("FATAL: ", e)
 	}
-}
-
-/*
- - port for serving html [8090]
- - path to root of served documents (may be absolute or relative to wd) [./]
- - path to static documents (may be absolute or relative to wd) [./static]
- - syncthing check period in hours [24]
- - report email target [me@gmail.com]
- - report email period in hours [24]
-*/
-type Configuration struct {
-	DialTimeout     int // Retry count for the initial connection.
-	Port            string
-	AcerFilePath    string // Location of file containing AcerStatus, read on demand or file-change.
-	AcerTimeZone    string // Applied to AcerStatus date/time strings.
-	SyncApiEndpoint string // Where syncthing status is obtained from.
-	SyncApiKey      string // Form the syncthing-gui advanced page.
-	SyncFolderId    string // As above.
-
-	DocRoot      string
-	AssetsRoot   string
-	CheckHours   int
-	EmailHours   int
-	EmailTargets []string
-	HistoryFile  string // Where the BackupStatus records are appended to.
-
-}
-
-var configPath string
-var configuration Configuration
-
-func ConfigurationLoad() Configuration {
-	// Load the config (from configPath) making it globally available.
-	log.Println("config path: ", configPath)
-	content, err := ioutil.ReadFile(configPath)
-	CheckDie(err)
-	// Ref: https://blog.golang.org/json-and-go
-	config := Configuration{}
-	err = json.Unmarshal(content, &config)
-	CheckDie(err)
-	log.Println("configuration loaded")
-	return config
-}
-
-func ConfigurationSave(config Configuration) {
-	content, err := json.MarshalIndent(config, "", "  ")
-	CheckDie(err)
-	err = ioutil.WriteFile(configPath, content, 0666)
-	CheckDie(err)
-	log.Println("configuration saved")
 }
 
 type HomePageVariables struct {
@@ -164,7 +115,7 @@ func getOutboundIP() net.IP {
 			return localAddr.IP
 		}
 		attempts = attempts + 1
-		if attempts >= configuration.DialTimeout {
+		if attempts >= config.Get().DialTimeout {
 			log.Fatal("FATAL: ", err)
 		}
 		log.Print("ERROR: failed to net.Dial, trying again in 1 second; ", err)
