@@ -75,6 +75,17 @@ func getSettings(c config.Configuration) []Setting {
 			return nil
 		},
 	})
+	settings = append(settings, Setting{
+		Id: "SimmonLogFilePath", Name: "Simmon Log File Path", Type: "text",
+		Value: c.SimmonLogFilePath, Description: "Path to logfile for Simmon",
+		Readonly: true,
+	})
+	settings = append(settings, Setting{
+		Id: "ReporterLogFilePath", Name: "Reported Log File Path", Type: "text",
+		Value: c.ReporterLogFilePath, Description: "Path to logfile for Reporter",
+		Readonly: true,
+	})
+
 	return settings
 }
 

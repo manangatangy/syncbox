@@ -12,6 +12,7 @@ import (
 	"reporter/config"
 	"strconv"
 	"strings"
+	"unicode"
 )
 
 type Setting struct {
@@ -49,9 +50,9 @@ func getSettings(logType string, startDate string, maxLines string) []Setting {
 		Validator: func(newValue string, fields *ValidatedFormFields) error {
 			switch newValue {
 			case "SIMMON":
-				fields.LogFilePath = config.Get().AcerFilePath
+				fields.LogFilePath = config.Get().SimmonLogFilePath
 			case "REPORTER":
-				fields.LogFilePath = "config.Get().AssetsRoot"
+				fields.LogFilePath = config.Get().ReporterLogFilePath
 			default:
 				return errors.New("Only SIMMON or REPORTER allowed")
 			}
@@ -125,8 +126,8 @@ func LoggingPage(w http.ResponseWriter, r *http.Request) {
 			if success {
 				// If all the settings are valid, then fetch the records from the specified log file.
 				lines, err := readLog(fields.LogFilePath, fields.StartDate, fields.MaxLines)
-				loggingPageVars.LogLines = *lines
 				if err == nil {
+					loggingPageVars.LogLines = *lines
 					loggingPageVars.Message = strconv.Itoa(len(*lines)) + " log lines retrieved"
 				} else {
 					loggingPageVars.Message = err.Error()
@@ -166,7 +167,7 @@ func readLog(logFilePath, startDate string, maxLines int) (*[]string, error) {
 	scanner := bufio.NewScanner(file)
 	for adding, finished := false, false; !finished && scanner.Scan(); {
 		line := scanner.Text()
-		if !adding && comparePrefix(startDate, line) <= 0 {
+		if !adding && matches(startDate, line) {
 			adding = true
 		}
 		if adding {
@@ -180,16 +181,59 @@ func readLog(logFilePath, startDate string, maxLines int) (*[]string, error) {
 	return &lines, nil
 }
 
-// Return the string comparison of prefix against the start of the line.
-// The number of characters being compared is the minimum of the prefix
-// length and the line length.
-func comparePrefix(prefix, line string) int {
-	i := len(prefix)
-	if len(prefix) == 0 { // Empty prefix means start from the first line
-		return -1
+// Return true if the line should passes the matching test, and is the
+// first of the selected /extracted lines.  The matching test is only
+// passed if ;
+// 1. the prefix is ampty string, or
+// 2. the prefix is an exact prefix of the line, or
+// 3. both strings are time-stamps and the prefix-time occurs before/equal
+// to line-time.  This test is processed according to;
+// 3.1. The prefix must contain some digits after all non-digit chars are
+// converted to spaces.
+// 3.2. extract from the line a string of up to the same length as prefix.
+// 3.3. take the prefix and for all the non-numeric characters, set the
+// character to space and in the same position in the extract, also
+// to space.
+// 3.4. perform an string comparison
+
+func matches(prefix, line string) bool {
+	s := len(prefix)
+	if s == 0 { // Empty prefix means start from the first line
+		return true
 	}
-	if i > len(line) {
-		i = len(line)
+	if s > len(line) {
+		s = len(line) // Shorten the length of comparison
 	}
-	return strings.Compare(string(prefix[:i]), string(line[:i]))
+	prefixT := prefix[:s]
+	lineT := line[:s]
+	if strings.Compare(string(prefixT), string(lineT)) == 0 {
+		return true
+	}
+	p := []rune(prefixT)
+	l := []rune(lineT)
+	fmt.Printf("==> subs '%s' length %d or %d\n", prefixT, s, len(prefixT))
+	fmt.Printf("==> subs '%s' length %d or %d\n", lineT, s, len(lineT))
+	fmt.Printf("==> rune '%v' length %d\n", p, len(p))
+	fmt.Printf("==> rune '%v' length %d\n", l, len(l))
+	var assembleP []rune
+	var assembleL []rune
+	for i := 0; i < s; i++ {
+		fmt.Printf("==> char at %d is %v and %v\n", i, p[i], l[i])
+		if unicode.IsDigit(p[i]) {
+			if unicode.IsDigit(l[i]) {
+				assembleP = append(assembleP, p[i])
+				assembleL = append(assembleL, l[i])
+			} else {
+				return false
+			}
+		} else {
+			assembleP = append(assembleP, rune(' '))
+			assembleL = append(assembleL, rune(' '))
+		}
+	}
+	strP := string(assembleP)
+	strL := string(assembleL)
+	result := strings.Compare(strP, strL) <= 0
+	fmt.Printf("==> matches '%s' and '%s' ==> %v\n", strP, strL, result)
+	return result
 }

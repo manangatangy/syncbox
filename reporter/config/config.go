@@ -27,6 +27,8 @@ type Configuration struct {
 	EmailTargets []string // Target for reports.
 	HistoryFile  string   // Where the BackupStatus records are appended to.
 
+	SimmonLogFilePath   string
+	ReporterLogFilePath string
 }
 
 var configPath string

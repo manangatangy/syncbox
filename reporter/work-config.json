@@ -14,5 +14,7 @@
     "david.x.weiss@gmail.com",
     "dummy@stupid"
   ],
-  "HistoryFile": "./history.json"
+  "HistoryFile": "./history.json",
+  "SimmonLogFilePath": "../simmon-sample.log",
+  "ReporterLogFilePath": "./reporter.log"
 }
