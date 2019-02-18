@@ -20,15 +20,18 @@ type Configuration struct {
 	SyncApiKey      string // Form the syncthing-gui advanced page.
 	SyncFolderId    string // As above.
 
-	DocRoot      string   // path to root of served documents (may be absolute or relative to wd) [./]
-	AssetsRoot   string   // path to static documents (may be absolute or relative to wd) [./static]
+	DocRoot     string // path to root of served documents (may be absolute or relative to wd) [./]
+	AssetsRoot  string // path to static documents (may be absolute or relative to wd) [./static]
+	HistoryFile string // Where the BackupStatus records are appended to.
+
+	SimmonLogFilePath    string
+	ReporterLogFilePath  string
+	SimmonLogAutoEmail   bool
+	ReporterLogAutoEmail bool
+
 	CheckHours   int      // syncthing check period in hours [24]
 	EmailHours   int      // Report email period in hours [24].
 	EmailTargets []string // Target for reports.
-	HistoryFile  string   // Where the BackupStatus records are appended to.
-
-	SimmonLogFilePath   string
-	ReporterLogFilePath string
 }
 
 var configPath string

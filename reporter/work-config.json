@@ -8,13 +8,15 @@
   "SyncFolderId": "w7vhz-txgya",
   "DocRoot": "./",
   "AssetsRoot": "./assets",
+  "HistoryFile": "./history.json",
+  "SimmonLogFilePath": "../simmon-sample.log",
+  "ReporterLogFilePath": "./reporter.log",
+  "SimmonLogAutoEmail": true,
+  "ReporterLogAutoEmail": true,
   "CheckHours": 24,
   "EmailHours": 24,
   "EmailTargets": [
     "david.x.weiss@gmail.com",
     "dummy@stupid"
-  ],
-  "HistoryFile": "./history.json",
-  "SimmonLogFilePath": "../simmon-sample.log",
-  "ReporterLogFilePath": "./reporter.log"
+  ]
 }
