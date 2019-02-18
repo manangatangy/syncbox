@@ -23,8 +23,8 @@ type Setting struct {
 	Readonly    bool
 	Errored     string
 	Description string
-	// The Validator takes a new value (as the entered string). If the validation
-	// fails, then an error is returned. This field is only used when Readonly = false
+	// Validator takes a new value (as the entered string). If validation fails
+	// then an error is returned. This field is only used when Readonly = false
 	Validator func(newValue string, fields *ValidatedFormFields) error
 }
 
@@ -82,11 +82,6 @@ func getSettings(logType string, startDate string, maxLines string) []Setting {
 			return err
 		},
 	})
-	// settings = append(settings, makeSetting(
-	// 	"Port", "Server Port", "text",
-	// 	c.Port, "Listening port",
-	// 	nil,		// Readonly
-	// ))
 	return settings
 }
 
@@ -169,6 +164,7 @@ func readLog(logFilePath, startDate string, maxLines int) (*[]string, error) {
 		line := scanner.Text()
 		if !adding && matches(startDate, line) {
 			adding = true
+			fmt.Printf("==> added at %s\n", line)
 		}
 		if adding {
 			lines = append(lines, line)
