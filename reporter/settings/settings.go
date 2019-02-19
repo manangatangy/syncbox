@@ -199,6 +199,11 @@ func makeAutoEmailSetting(shortName string, id string, c config.Configuration, g
 func getAutoEmailSettings(c config.Configuration) []AutoEmailSetting {
 	var settings []AutoEmailSetting
 	settings = append(settings,
+		makeAutoEmailSetting("History", "HistoryLogAutoEmail", c,
+			func(c *config.Configuration) (aec *config.AutoEmailConfig) {
+				return &c.HistoryLogAutoEmail
+			}))
+	settings = append(settings,
 		makeAutoEmailSetting("Reporter", "ReporterLogAutoEmail", c,
 			func(c *config.Configuration) (aec *config.AutoEmailConfig) {
 				return &c.ReporterLogAutoEmail

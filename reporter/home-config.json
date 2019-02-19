@@ -9,6 +9,13 @@
   "DocRoot": "./",
   "AssetsRoot": "./assets",
   "HistoryFile": "./history.json",
+  "HistoryLogAutoEmail": {
+    "AutoEmailEnable": true,
+    "AutoEmailCount": 11,
+    "AutoEmailPeriod": "weeks",
+    "AutoEmailNext": "2019-05-07 15:45:00"
+  },
+
   "ReporterLogFilePath": "./reporter.log",
   "ReporterLogAutoEmail": {
     "AutoEmailEnable": true,

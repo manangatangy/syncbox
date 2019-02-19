@@ -27,9 +27,11 @@ type Configuration struct {
 	SyncApiKey      string // Form the syncthing-gui advanced page.
 	SyncFolderId    string // As above.
 
-	DocRoot     string // path to root of served documents (may be absolute or relative to wd) [./]
-	AssetsRoot  string // path to static documents (may be absolute or relative to wd) [./static]
-	HistoryFile string // Where the BackupStatus records are appended to.
+	DocRoot    string // path to root of served documents (may be absolute or relative to wd) [./]
+	AssetsRoot string // path to static documents (may be absolute or relative to wd) [./static]
+
+	HistoryFile         string // Where the BackupStatus records are appended to.
+	HistoryLogAutoEmail AutoEmailConfig
 
 	ReporterLogFilePath  string
 	ReporterLogAutoEmail AutoEmailConfig

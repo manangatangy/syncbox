@@ -9,19 +9,25 @@
   "DocRoot": "./",
   "AssetsRoot": "./assets",
   "HistoryFile": "./history.json",
+  "HistoryLogAutoEmail": {
+    "AutoEmailEnable": true,
+    "AutoEmailCount": 24,
+    "AutoEmailPeriod": "hours",
+    "AutoEmailNext": "2019-02-20 15:53:00"
+  },
   "ReporterLogFilePath": "./reporter.log",
   "ReporterLogAutoEmail": {
-    "AutoEmailEnable": true,
-    "AutoEmailCount": 11,
-    "AutoEmailPeriod": "weeks",
-    "AutoEmailNext": "2019-05-07 15:45:00"
+    "AutoEmailEnable": false,
+    "AutoEmailCount": 4,
+    "AutoEmailPeriod": "days",
+    "AutoEmailNext": "2019-02-23 15:53:00"
   },
   "SimmonLogFilePath": "../simmon-sample.log",
   "SimmonLogAutoEmail": {
-    "AutoEmailEnable": true,
-    "AutoEmailCount": 55,
-    "AutoEmailPeriod": "hours",
-    "AutoEmailNext": "2019-02-21 22:46:00"
+    "AutoEmailEnable": false,
+    "AutoEmailCount": 2,
+    "AutoEmailPeriod": "days",
+    "AutoEmailNext": "2019-02-21 15:53:00"
   },
   "EmailTargets": [
     "david.x.weiss@gmail.com"
