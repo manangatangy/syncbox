@@ -146,6 +146,51 @@ func parseChecked(checked string) bool {
 	}
 }
 
+type GetAutoConfig func(c *config.Configuration) (aec *config.AutoEmailConfig)
+
+func makeAutoEmailSetting(shortName string, id string, c config.Configuration, get GetAutoConfig) AutoEmailSetting {
+	var aec *config.AutoEmailConfig = get(&c)
+	return AutoEmailSetting{
+		Id: id, Name: shortName + " Auto Email",
+		Checked:     formatChecked(aec.AutoEmailEnable),
+		Count:       strconv.Itoa(aec.AutoEmailCount),
+		Period:      aec.AutoEmailPeriod,
+		NextEmail:   aec.AutoEmailNext,
+		Description: "Check to enable auto emailing of " + shortName + " logs",
+		Validator: func(f url.Values, s *AutoEmailSetting, c *config.Configuration) error {
+			var aec *config.AutoEmailConfig = get(c)
+			// Validation is only performed (and the nextEmail value updated) if the checkbox is
+			// changed from clear (during which the Count, Period can be entered) to set (after which
+			// Count and Period are readonly).
+			s.Checked = f.Get(shortName + "LogAutoEmail_Checked")
+			if !aec.AutoEmailEnable && (s.Checked != "") {
+				s.Count = f.Get(shortName + "LogAutoEmail_Count")
+				s.Period = f.Get(shortName + "LogAutoEmail_Period")
+				// Update the Period, count, next fields
+				aec.AutoEmailCount, _ = strconv.Atoi(s.Count)
+				aec.AutoEmailPeriod = s.Period
+				// Calculate next as now plus the specified period
+				next := time.Now()
+				switch s.Period {
+				case "hours":
+					next = next.Add(time.Hour * time.Duration(aec.AutoEmailCount))
+				case "days":
+					next = next.AddDate(0, 0, aec.AutoEmailCount)
+				case "weeks":
+					next = next.AddDate(0, 0, 7*aec.AutoEmailCount)
+				}
+				s.NextEmail = next.Format(EMAIL_TIME_FORMAT)
+				aec.AutoEmailNext = s.NextEmail
+			} else {
+				s.Count = strconv.Itoa(aec.AutoEmailCount)
+				s.Period = aec.AutoEmailPeriod
+			}
+			aec.AutoEmailEnable = (s.Checked != "")
+			return nil
+		},
+	}
+}
+
 // html creates elements for
 // s.Checked ==> ReporterLogAutoEmail_Checked,
 // s.Count ==> ReporterLogAutoEmail_Count,
@@ -153,45 +198,17 @@ func parseChecked(checked string) bool {
 // s.NextEmail ==> ReporterLogAutoEmail_NextEmail  (readonly)
 func getAutoEmailSettings(c config.Configuration) []AutoEmailSetting {
 	var settings []AutoEmailSetting
-	settings = append(settings, AutoEmailSetting{
-		Id: "ReporterLogAutoEmail", Name: "Reporter Auto Email",
-		Checked:     formatChecked(c.ReporterLogAutoEmailEnable),
-		Count:       strconv.Itoa(c.ReporterLogAutoEmailCount),
-		Period:      c.ReporterLogAutoEmailPeriod,
-		NextEmail:   c.ReporterLogAutoEmailNext,
-		Description: "Check to enable auto emailing of Reporter logs",
-		Validator: func(f url.Values, s *AutoEmailSetting, c *config.Configuration) error {
-			// Validation is only performed (and the nextEmail value updated) if the checkbox is
-			// changed from clear (during which the Count, Period can be entered) to set (after which
-			// Count and Period are readonly).
-			s.Checked = f.Get("ReporterLogAutoEmail_Checked")
-			if !c.ReporterLogAutoEmailEnable && (s.Checked != "") {
-				s.Count = f.Get("ReporterLogAutoEmail_Count")
-				s.Period = f.Get("ReporterLogAutoEmail_Period")
-				// Update the Period, count, next fields
-				c.ReporterLogAutoEmailCount, _ = strconv.Atoi(s.Count)
-				c.ReporterLogAutoEmailPeriod = s.Period
-				// Calculate next as now plus the specified period
-				next := time.Now()
-				switch s.Period {
-				case "hours":
-					next = next.Add(time.Hour * time.Duration(c.ReporterLogAutoEmailCount))
-				case "days":
-					next = next.AddDate(0, 0, c.ReporterLogAutoEmailCount)
-				case "weeks":
-					next = next.AddDate(0, 0, 7*c.ReporterLogAutoEmailCount)
-				}
-				s.NextEmail = next.Format(EMAIL_TIME_FORMAT)
-				c.ReporterLogAutoEmailNext = s.NextEmail
-			} else {
-				s.Count = strconv.Itoa(c.ReporterLogAutoEmailCount)
-				s.Period = c.ReporterLogAutoEmailPeriod
+	settings = append(settings,
+		makeAutoEmailSetting("Reporter", "ReporterLogAutoEmail", c,
+			func(c *config.Configuration) (aec *config.AutoEmailConfig) {
+				return &c.ReporterLogAutoEmail
+			}))
+	settings = append(settings,
+		makeAutoEmailSetting("Simmon", "SimmonLogAutoEmail", c,
+			func(c *config.Configuration) (aec *config.AutoEmailConfig) {
+				return &c.SimmonLogAutoEmail
+			}))
 
-			}
-			c.ReporterLogAutoEmailEnable = (s.Checked != "")
-			return nil
-		},
-	})
 	return settings
 }
 

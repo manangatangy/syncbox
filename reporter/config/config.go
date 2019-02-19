@@ -8,6 +8,13 @@ import (
 	"sync"
 )
 
+type AutoEmailConfig struct {
+	AutoEmailEnable bool
+	AutoEmailCount  int
+	AutoEmailPeriod string
+	AutoEmailNext   string
+}
+
 // The following config data is stored in a file at ConfigPath
 // Read/write access should be done using Path/Get/Set to make it thread safe.
 // Path() must be called before Get() or Set()
@@ -24,17 +31,11 @@ type Configuration struct {
 	AssetsRoot  string // path to static documents (may be absolute or relative to wd) [./static]
 	HistoryFile string // Where the BackupStatus records are appended to.
 
-	ReporterLogFilePath        string
-	ReporterLogAutoEmailEnable bool
-	ReporterLogAutoEmailCount  int
-	ReporterLogAutoEmailPeriod string
-	ReporterLogAutoEmailNext   string
+	ReporterLogFilePath  string
+	ReporterLogAutoEmail AutoEmailConfig
 
-	SimmonLogFilePath        string
-	SimmonLogAutoEmailEnable bool
-	SimmonLogAutoEmailCount  int
-	SimmonLogAutoEmailPeriod string
-	SimmonLogAutoEmailNext   string
+	SimmonLogFilePath  string
+	SimmonLogAutoEmail AutoEmailConfig
 
 	EmailTargets []string // Target for reports.
 }
