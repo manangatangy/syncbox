@@ -9,14 +9,17 @@
   "DocRoot": "./",
   "AssetsRoot": "./assets",
   "HistoryFile": "./history.json",
-  "SimmonLogFilePath": "../simmon-sample.log",
   "ReporterLogFilePath": "./reporter.log",
-  "SimmonLogAutoEmail": true,
-  "ReporterLogAutoEmail": true,
-  "CheckHours": 24,
-  "EmailHours": 24,
+  "ReporterLogAutoEmailEnable": true,
+  "ReporterLogAutoEmailCount": 1,
+  "ReporterLogAutoEmailPeriod": "days",
+  "ReporterLogAutoEmailNext": "2019-02-20 14:48:00",
+  "SimmonLogFilePath": "../simmon-sample.log",
+  "SimmonLogAutoEmailEnable": true,
+  "SimmonLogAutoEmailCount": 24,
+  "SimmonLogAutoEmailPeriod": "Hours",
+  "SimmonLogAutoEmailNext": "",
   "EmailTargets": [
-    "david.x.weiss@gmail.com",
-    "dummy@stupid"
+    "david.x.weiss@gmail.com"
   ]
 }

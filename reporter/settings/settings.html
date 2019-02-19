@@ -42,13 +42,47 @@
                 </div>
                 {{range .Settings}}
                     <div class="pure-control-group">
-                            <label for="{{.Id}}">{{.Name}}</label>
-                            <input class="pure-input-1-3" id="{{.Id}}" name="{{.Id}}" type="{{.Type}}" 
-                                value="{{.Value}}" {{if .Readonly}}readonly{{end}} {{if .Checked}} checked{{end}}
-                            >
-                            <span class="{{.Errored}} pure-form-message-inline">{{.Description}}</span>
-                        </div>
+                        <label for="{{.Id}}">{{.Name}}</label>
+                        <input class="pure-input-1-3" id="{{.Id}}" name="{{.Id}}" type="{{.Type}}" 
+                            value="{{.Value}}" {{if .Readonly}}readonly{{end}} {{if .Checked}} checked{{end}}
+                        >
+                        <span class="{{.Errored}} pure-form-message-inline">{{.Description}}</span>
+                    </div>
                 {{end}}
+
+                {{range .AutoEmailSettings}}
+                    <div class="pure-control-group">
+                        <label for="{{.Id}}">{{.Name}}</label>
+                        <input class="pure-input-1-3" id="{{.Id}}" name="{{.Id}}_Checked" 
+                            type="checkbox" value="checked" {{if .Checked}} checked{{end}}
+                        >                                
+                        <span class="{{.Errored}} pure-form-message-inline">{{.Description}}</span>
+                    </div>
+
+                    <div class="pure-control-group">
+                        <label>Period</label>
+                        <!-- The editing of period and count is only allowed when the checkbox is disabled -->
+                        {{if .Checked}}
+                            <input class="pure-input-1-3" name="{{.Id}}_Count" type="number" value="{{.Count}}" readonly>
+                            <input name="{{.Id}}_Period" type="text" value="{{.Period}}" readonly>
+                        {{else}}
+                            <input class="pure-input-1-3" name="{{.Id}}_Count" type="number" value="{{.Count}}" >
+                            <select name="{{.Id}}_Period">
+                                <option value="hours" {{if eq .Period "hours"}}selected{{end}}>hours</option>
+                                <option value="days" {{if eq .Period "days"}}selected{{end}}>days</option>
+                                <option value="weeks" {{if eq .Period "weeks"}}selected{{end}}>weeks</option>
+                            </select>
+                        {{end}}
+                    </div>
+
+                    <div class="pure-control-group">
+                        <label>Next</label>
+                        <input class="pure-input-1-3" type="text" value="{{.NextEmail}}" readonly>
+                        <span class="pure-form-message-inline">Next email due</span>
+                    </div>
+    
+                {{end}}
+
                 <div class="pure-controls">
                     <button type="submit" class="pure-button pure-button-primary" name="submit" value="yes">Submit</button>
                     <button type="submit" class="pure-button pure-button-primary" name="reset" value="yes">Reset</button>

@@ -6,14 +6,17 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"net/url"
 	"reporter/config"
 	"strconv"
+	"time"
 )
 
 type SettingsPageVariables struct {
-	LocalServer    bool
-	SuccessMessage string
-	Settings       []Setting
+	LocalServer       bool
+	SuccessMessage    string
+	Settings          []Setting
+	AutoEmailSettings []AutoEmailSetting
 }
 
 type Setting struct {
@@ -25,16 +28,17 @@ type Setting struct {
 	Errored     string
 	Checked     bool
 	Description string
-	// The Validator takes a new value (as the entered string), validates it and stores
-	// it as the correct type in a field in the config.  It also should place the value
-	// back in the Setting for response to the page. This should happen uncondictionally
-	// since the page should always show the value as entered by the user.  Validators
-	// have the choice of when to place the value in the page, since for a checkbox, the
-	// value is encoded as the 'checked' attribute, not the value attribute.
-	// If the validation fails, then an error is returned.
-	// This field is only used when Readonly = false
-	Validator func(newValue string, c *config.Configuration, s *Setting) error
+
+	// The validator's job is to read appropriate field value(s) from the request Form, place
+	// them into the setting for reply to the page, and also (if they validate OK) write them
+	// to the settings.
+	Validator func(f url.Values, c *config.Configuration, s *Setting) error
 }
+
+const (
+	EMAIL_TIME_FORMAT = "2006-01-02 15:04:00"
+	// time, err := time.Parse(ACER_TIME_FORMAT, acerDateTime)
+)
 
 // Create a Settings list from the specified Configuration values
 // with the Description set and the Errored empty.
@@ -43,14 +47,14 @@ func getSettings(c config.Configuration) []Setting {
 	settings = append(settings, Setting{
 		Id: "DialTimeout", Name: "Connection Timeout", Type: "number",
 		Value: strconv.Itoa(c.DialTimeout), Description: "Retry count for the initial connection",
-		Validator: func(newValue string, c *config.Configuration, s *Setting) error {
+		Validator: func(f url.Values, c *config.Configuration, s *Setting) error {
+			s.Value = f.Get(s.Id) // [s.Id] Unconditionally return to the page
 			var err error
-			if c.DialTimeout, err = strconv.Atoi(newValue); err == nil {
+			if c.DialTimeout, err = strconv.Atoi(s.Value); err == nil {
 				if c.DialTimeout < 1 || c.DialTimeout > 10000 {
 					err = errors.New("out of range (1,10000)")
 				}
 			}
-			s.Value = newValue // Unconditionally return to the page
 			return err
 		},
 	})
@@ -62,27 +66,27 @@ func getSettings(c config.Configuration) []Setting {
 	settings = append(settings, Setting{
 		Id: "AcerFilePath", Name: "Acer File Path", Type: "text",
 		Value: c.AcerFilePath, Description: "Location of file containing AcerStatus",
-		Validator: func(newValue string, c *config.Configuration, s *Setting) error {
-			c.AcerFilePath = newValue
-			s.Value = newValue
+		Validator: func(f url.Values, c *config.Configuration, s *Setting) error {
+			s.Value = f.Get(s.Id) // [s.Id] Unconditionally return to the page
+			c.AcerFilePath = s.Value
 			return nil
 		},
 	})
 	settings = append(settings, Setting{
 		Id: "SyncFolderId", Name: "Syncthing Folder Id", Type: "text",
 		Value: c.SyncFolderId, Description: "Identifies folder being monitored (from Syncthing-GUI)",
-		Validator: func(newValue string, c *config.Configuration, s *Setting) error {
-			c.SyncFolderId = newValue
-			s.Value = newValue
+		Validator: func(f url.Values, c *config.Configuration, s *Setting) error {
+			s.Value = f.Get(s.Id) // [s.Id] Unconditionally return to the page
+			c.SyncFolderId = s.Value
 			return nil
 		},
 	})
 	settings = append(settings, Setting{
 		Id: "SyncApiKey", Name: "Syncthing API Key", Type: "text",
 		Value: c.SyncApiKey, Description: "Authorises API access (from Syncthing-GUI)",
-		Validator: func(newValue string, c *config.Configuration, s *Setting) error {
-			c.SyncApiKey = newValue
-			s.Value = newValue
+		Validator: func(f url.Values, c *config.Configuration, s *Setting) error {
+			s.Value = f.Get(s.Id) // [s.Id] Unconditionally return to the page
+			c.SyncApiKey = s.Value
 			return nil
 		},
 	})
@@ -96,30 +100,98 @@ func getSettings(c config.Configuration) []Setting {
 		Value: c.ReporterLogFilePath, Description: "Path to logfile for Reporter",
 		Readonly: true,
 	})
-	settings = append(settings, Setting{
-		Id: "SimmonLogAutoEmail", Name: "Simmon Auto Email", Type: "checkbox",
-		Value: "enabled", Description: "Check to enable auto emailing of Simmon logs",
-		Checked: c.SimmonLogAutoEmail,
-		Validator: func(newValue string, c *config.Configuration, s *Setting) error {
-			// When checked, the value may be "enabled" or "" (if unchecked)
-			c.SimmonLogAutoEmail = (newValue != "")
-			s.Checked = c.SimmonLogAutoEmail // Return to the page/checkbox
-			// s.Value = "enabled"
-			return nil
-		},
-	})
-	settings = append(settings, Setting{
-		Id: "ReporterLogAutoEmail", Name: "Reporter Auto Email", Type: "checkbox",
-		Value: "enabled", Description: "Check to enable auto emailing of Reporter logs",
-		Checked: c.ReporterLogAutoEmail,
-		Validator: func(newValue string, c *config.Configuration, s *Setting) error {
-			c.ReporterLogAutoEmail = (newValue != "")
-			s.Checked = c.ReporterLogAutoEmail // Return to the page/checkbox
-			// s.Value = "enabled"
-			return nil
-		},
-	})
+	return settings
+}
 
+type AutoEmailSetting struct {
+	Id          string
+	Name        string
+	Checked     string // Is either "checked" or ""
+	Count       string
+	Period      string
+	NextEmail   string
+	Description string
+	Errored     string
+
+	// The validator's job is to read appropriate field value(s) from the request Form, place
+	// them into the setting for reply to the page, and also (if they validate OK) write them
+	// to the config.
+	Validator func(f url.Values, s *AutoEmailSetting, c *config.Configuration) error
+}
+
+// The Validator takes a new value (as the entered string), validates it and stores
+// it as the correct type in a field in the config.  It also should place the value
+// back in the Setting for response to the page. This should happen uncondictionally
+// since the page should always show the value as entered by the user.  Validators
+// have the choice of when to place the value in the page, since for a checkbox, the
+// value is encoded as the 'checked' attribute, not the value attribute.
+// If the validation fails, then an error is returned.
+// This field is only used when Readonly = false
+
+// Returns "checked" or ""
+func formatChecked(checked bool) string {
+	if checked {
+		return "checked"
+	} else {
+		return ""
+	}
+}
+
+// Returns true (for "checked") or false (for anything else)
+func parseChecked(checked string) bool {
+	if checked == "checked" {
+		return true
+	} else {
+		return false
+	}
+}
+
+// html creates elements for
+// s.Checked ==> ReporterLogAutoEmail_Checked,
+// s.Count ==> ReporterLogAutoEmail_Count,
+// s.Period ==> ReporterLogAutoEmail_Period,
+// s.NextEmail ==> ReporterLogAutoEmail_NextEmail  (readonly)
+func getAutoEmailSettings(c config.Configuration) []AutoEmailSetting {
+	var settings []AutoEmailSetting
+	settings = append(settings, AutoEmailSetting{
+		Id: "ReporterLogAutoEmail", Name: "Reporter Auto Email",
+		Checked:     formatChecked(c.ReporterLogAutoEmailEnable),
+		Count:       strconv.Itoa(c.ReporterLogAutoEmailCount),
+		Period:      c.ReporterLogAutoEmailPeriod,
+		NextEmail:   c.ReporterLogAutoEmailNext,
+		Description: "Check to enable auto emailing of Reporter logs",
+		Validator: func(f url.Values, s *AutoEmailSetting, c *config.Configuration) error {
+			// Validation is only performed (and the nextEmail value updated) if the checkbox is
+			// changed from clear (during which the Count, Period can be entered) to set (after which
+			// Count and Period are readonly).
+			s.Checked = f.Get("ReporterLogAutoEmail_Checked")
+			if !c.ReporterLogAutoEmailEnable && (s.Checked != "") {
+				s.Count = f.Get("ReporterLogAutoEmail_Count")
+				s.Period = f.Get("ReporterLogAutoEmail_Period")
+				// Update the Period, count, next fields
+				c.ReporterLogAutoEmailCount, _ = strconv.Atoi(s.Count)
+				c.ReporterLogAutoEmailPeriod = s.Period
+				// Calculate next as now plus the specified period
+				next := time.Now()
+				switch s.Period {
+				case "hours":
+					next = next.Add(time.Hour * time.Duration(c.ReporterLogAutoEmailCount))
+				case "days":
+					next = next.AddDate(0, 0, c.ReporterLogAutoEmailCount)
+				case "weeks":
+					next = next.AddDate(0, 0, 7*c.ReporterLogAutoEmailCount)
+				}
+				s.NextEmail = next.Format(EMAIL_TIME_FORMAT)
+				c.ReporterLogAutoEmailNext = s.NextEmail
+			} else {
+				s.Count = strconv.Itoa(c.ReporterLogAutoEmailCount)
+				s.Period = c.ReporterLogAutoEmailPeriod
+
+			}
+			c.ReporterLogAutoEmailEnable = (s.Checked != "")
+			return nil
+		},
+	})
 	return settings
 }
 
@@ -130,6 +202,7 @@ func SettingsPage(w http.ResponseWriter, r *http.Request) {
 	// Fetch the current config values into the page. For GET (initial page load)
 	// and for (POST, "reset") this will be the values 'returned' back to the page.
 	settingsPageVars.Settings = getSettings(config.Get())
+	settingsPageVars.AutoEmailSettings = getAutoEmailSettings(config.Get())
 	fmt.Printf("SettingsPage method ===> %v\n", r.Method)
 	if r.Method == http.MethodPost {
 		r.ParseForm()
@@ -146,13 +219,21 @@ func SettingsPage(w http.ResponseWriter, r *http.Request) {
 				if !setting.Readonly {
 					// could also use "if val, ok := m[key]; ok" to test for contains
 					fmt.Printf("===> USING form value '%s' for key %s\n", setting.Value, setting.Id)
-					if err := setting.Validator(r.Form.Get(setting.Id), &c, setting); err != nil {
+					if err := setting.Validator(r.Form, &c, setting); err != nil {
 						setting.Description = err.Error()
 						setting.Errored = "errored"
 						success = false
 					}
 				}
 				// fmt.Printf("setting after validating ==> %v\n", setting)
+			}
+			for a := 0; a < len(settingsPageVars.AutoEmailSettings); a++ {
+				auto := &settingsPageVars.AutoEmailSettings[a]
+				if err := auto.Validator(r.Form, auto, &c); err != nil {
+					auto.Description = err.Error()
+					auto.Errored = "errored"
+					success = false
+				}
 			}
 			// fmt.Printf("config after validating ==> %v\n", config)
 			if success {

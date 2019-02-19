@@ -8,15 +8,21 @@
   "SyncFolderId": "zzecm-apamx",
   "DocRoot": "./",
   "AssetsRoot": "./assets",
-  "CheckHours": 24,
-  "EmailHours": 24,
-  "EmailTargets": [
-    "david.x.weiss@gmail.com",
-    "dummy@stupid"
-  ],
   "HistoryFile": "./history.json",
-  "SimmonLogAutoEmail": true,
-  "ReporterLogAutoEmail": true,
+
+  "ReporterLogFilePath": "./reporter.log",
+	"ReporterLogAutoEmailEnable": true,
+	"ReporterLogAutoEmailCount":  24,
+	"ReporterLogAutoEmailPeriod": "Hours",
+  "ReporterLogAutoEmailNext": "",
+
   "SimmonLogFilePath": "../simmon.log",
-  "ReporterLogFilePath": "./reporter.log"
+  "SimmonLogAutoEmailEnable": true,
+	"SimmonLogAutoEmailCount":  24,
+	"SimmonLogAutoEmailPeriod": "Hours",
+  "SimmonLogAutoEmailNext": "",
+
+  "EmailTargets": [
+    "david.x.weiss@gmail.com"
+  ]
 }

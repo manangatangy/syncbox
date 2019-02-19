@@ -24,13 +24,18 @@ type Configuration struct {
 	AssetsRoot  string // path to static documents (may be absolute or relative to wd) [./static]
 	HistoryFile string // Where the BackupStatus records are appended to.
 
-	SimmonLogFilePath    string
-	ReporterLogFilePath  string
-	SimmonLogAutoEmail   bool
-	ReporterLogAutoEmail bool
+	ReporterLogFilePath        string
+	ReporterLogAutoEmailEnable bool
+	ReporterLogAutoEmailCount  int
+	ReporterLogAutoEmailPeriod string
+	ReporterLogAutoEmailNext   string
 
-	CheckHours   int      // syncthing check period in hours [24]
-	EmailHours   int      // Report email period in hours [24].
+	SimmonLogFilePath        string
+	SimmonLogAutoEmailEnable bool
+	SimmonLogAutoEmailCount  int
+	SimmonLogAutoEmailPeriod string
+	SimmonLogAutoEmailNext   string
+
 	EmailTargets []string // Target for reports.
 }
 
