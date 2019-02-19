@@ -3,7 +3,7 @@ package logging
 import (
 	"bufio"
 	"errors"
-	"fmt"
+	// "fmt"
 	"html/template"
 	// "io"
 	"log"
@@ -89,7 +89,6 @@ func LoggingPage(w http.ResponseWriter, r *http.Request) {
 	loggingPageVars := LoggingPageVariables{
 		LocalServer: true,
 	}
-	fmt.Printf("LoggingPage method ===> %v\n", r.Method)
 	if r.Method != http.MethodPost {
 		// TODO - determine start date, as say yesterday using format "2019/02/11 11:11:42"
 		// startDate is a string like
@@ -115,9 +114,7 @@ func LoggingPage(w http.ResponseWriter, r *http.Request) {
 						success = false
 					}
 				}
-				fmt.Printf("setting after validating ==> %v\n", setting)
 			}
-			// fmt.Printf("config after validating ==> %v\n", config)
 			if success {
 				// If all the settings are valid, then fetch the records from the specified log file.
 				lines, err := readLog(fields.LogFilePath, fields.StartDate, fields.MaxLines)
@@ -130,7 +127,6 @@ func LoggingPage(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-
 	t, err := template.ParseFiles("logging/logging.html")
 	if err != nil {
 		log.Print("ERROR: LoggingPage template parsing error: ", err)
@@ -139,7 +135,6 @@ func LoggingPage(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Print("ERROR: LoggingPage template executing error: ", err)
 	}
-
 }
 
 // startDate is a string like
@@ -164,7 +159,6 @@ func readLog(logFilePath, startDate string, maxLines int) (*[]string, error) {
 		line := scanner.Text()
 		if !adding && matches(startDate, line) {
 			adding = true
-			fmt.Printf("==> added at %s\n", line)
 		}
 		if adding {
 			lines = append(lines, line)
@@ -173,7 +167,6 @@ func readLog(logFilePath, startDate string, maxLines int) (*[]string, error) {
 			}
 		}
 	}
-	fmt.Printf("===> readLog added %d lines\n", count)
 	return &lines, nil
 }
 
@@ -199,7 +192,11 @@ func matches(prefix, line string) bool {
 	}
 	if s > len(line) {
 		s = len(line) // Shorten the length of comparison
+		if s <= 0 {
+			return false
+		}
 	}
+
 	prefixT := prefix[:s]
 	lineT := line[:s]
 	if strings.Compare(string(prefixT), string(lineT)) == 0 {
@@ -207,14 +204,9 @@ func matches(prefix, line string) bool {
 	}
 	p := []rune(prefixT)
 	l := []rune(lineT)
-	fmt.Printf("==> subs '%s' length %d or %d\n", prefixT, s, len(prefixT))
-	fmt.Printf("==> subs '%s' length %d or %d\n", lineT, s, len(lineT))
-	fmt.Printf("==> rune '%v' length %d\n", p, len(p))
-	fmt.Printf("==> rune '%v' length %d\n", l, len(l))
 	var assembleP []rune
 	var assembleL []rune
 	for i := 0; i < s; i++ {
-		fmt.Printf("==> char at %d is %v and %v\n", i, p[i], l[i])
 		if unicode.IsDigit(p[i]) {
 			if unicode.IsDigit(l[i]) {
 				assembleP = append(assembleP, p[i])
@@ -230,6 +222,5 @@ func matches(prefix, line string) bool {
 	strP := string(assembleP)
 	strL := string(assembleL)
 	result := strings.Compare(strP, strL) <= 0
-	fmt.Printf("==> matches '%s' and '%s' ==> %v\n", strP, strL, result)
 	return result
 }
