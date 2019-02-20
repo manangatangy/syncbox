@@ -35,11 +35,6 @@ type Setting struct {
 	Validator func(f url.Values, c *config.Configuration, s *Setting) error
 }
 
-const (
-	EMAIL_TIME_FORMAT = "2006-01-02 15:04:00"
-	// time, err := time.Parse(ACER_TIME_FORMAT, acerDateTime)
-)
-
 // Create a Settings list from the specified Configuration values
 // with the Description set and the Errored empty.
 func getSettings(c config.Configuration) []Setting {
@@ -170,16 +165,7 @@ func makeAutoEmailSetting(shortName string, id string, c config.Configuration, g
 				aec.AutoEmailCount, _ = strconv.Atoi(s.Count)
 				aec.AutoEmailPeriod = s.Period
 				// Calculate next as now plus the specified period
-				next := time.Now()
-				switch s.Period {
-				case "hours":
-					next = next.Add(time.Hour * time.Duration(aec.AutoEmailCount))
-				case "days":
-					next = next.AddDate(0, 0, aec.AutoEmailCount)
-				case "weeks":
-					next = next.AddDate(0, 0, 7*aec.AutoEmailCount)
-				}
-				s.NextEmail = next.Format(EMAIL_TIME_FORMAT)
+				_, s.NextEmail = CalculateNextTime(time.Now(), aec.AutoEmailCount, aec.AutoEmailPeriod)
 				aec.AutoEmailNext = s.NextEmail
 			} else {
 				s.Count = strconv.Itoa(aec.AutoEmailCount)
@@ -189,6 +175,20 @@ func makeAutoEmailSetting(shortName string, id string, c config.Configuration, g
 			return nil
 		},
 	}
+}
+
+func CalculateNextTime(from time.Time, count int, period string) (time.Time, string) {
+	// Calculate next as now plus the specified period
+	// next := time.Now()
+	switch period {
+	case "hours":
+		from = from.Add(time.Hour * time.Duration(count))
+	case "days":
+		from = from.AddDate(0, 0, count)
+	case "weeks":
+		from = from.AddDate(0, 0, count)
+	}
+	return from, from.Format(config.TIME_FORMAT)
 }
 
 // html creates elements for
