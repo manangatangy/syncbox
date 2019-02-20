@@ -43,7 +43,11 @@ type Configuration struct {
 	SimmonLogFilePath  string
 	SimmonLogAutoEmail AutoEmailConfig
 
-	EmailTargets []string // Target for reports.
+	EmailFrom     string
+	EmailTo       string
+	EmailUserName string
+	EmailPassword string
+	EmailHost     string
 }
 
 var configPath string

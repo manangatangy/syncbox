@@ -86,6 +86,48 @@ func getSettings(c config.Configuration) []Setting {
 		},
 	})
 	settings = append(settings, Setting{
+		Id: "EmailFrom", Name: "Email Account", Type: "text",
+		Value: c.EmailFrom, Description: "Email account address used to send reports",
+		Validator: func(f url.Values, c *config.Configuration, s *Setting) error {
+			s.Value = f.Get(s.Id)
+			end := 0
+			for j, r := range s.Value {
+				if r == '@' {
+					end = j
+					break
+				}
+			}
+			// Ref: a very useful substring routine
+			// https://stackoverflow.com/a/38537764/1402287
+			if end == 0 {
+				return errors.New("not a valid email address")
+			} else {
+				c.EmailFrom = s.Value
+				c.EmailUserName = s.Value[0:end]
+				return nil
+			}
+		},
+	})
+
+	settings = append(settings, Setting{
+		Id: "EmailPassword", Name: "Email Password", Type: "text",
+		Value: c.EmailPassword, Description: "Email account password used to send reports",
+		Validator: func(f url.Values, c *config.Configuration, s *Setting) error {
+			s.Value = f.Get(s.Id)
+			c.EmailPassword = s.Value
+			return nil
+		},
+	})
+	settings = append(settings, Setting{
+		Id: "EmailTo", Name: "Email Target", Type: "text",
+		Value: c.EmailTo, Description: "Target email address for all reports",
+		Validator: func(f url.Values, c *config.Configuration, s *Setting) error {
+			s.Value = f.Get(s.Id)
+			c.EmailTo = s.Value
+			return nil
+		},
+	})
+	settings = append(settings, Setting{
 		Id: "SimmonLogFilePath", Name: "Simmon Log Path", Type: "text",
 		Value: c.SimmonLogFilePath, Description: "Path to logfile for Simmon",
 		Readonly: true,

@@ -29,7 +29,9 @@
     "AutoEmailPeriod": "days",
     "AutoEmailNext": "2019-02-21 15:53:00"
   },
-  "EmailTargets": [
-    "david.x.weiss@gmail.com"
-  ]
+  "EmailFrom": "syncboxmichele@gmail.com",
+  "EmailTo": "david.x.weiss@gmail.com",
+  "EmailUserName": "syncboxmichele",
+  "EmailPassword": "kAk&dee14",
+  "EmailHost": "smtp.gmail.com"
 }

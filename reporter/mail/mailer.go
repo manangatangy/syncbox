@@ -77,22 +77,27 @@ func Mailer(readConfig <-chan struct{}, key int, gen EmailGen) {
 				subject, _ := gen(&body)
 
 				m := gomail.NewMessage()
-				// todo get  to/from from configuration
-				// todo akter subkect to be summary of missing files, and since
-				// TODO config := config.Get()
+				// TODO alter subkect to be summary of missing files, and since
 
-				m.SetHeader("From", "syncboxmichele@gmail.com")
-				m.SetHeader("To", "david.x.weiss@gmail.com")
+				/*
+					EmailFrom     string	"syncboxmichele@gmail.com"
+					EmailTo       string	"david.x.weiss@gmail.com"
+					EmailUserName string	"syncboxmichele"
+					EmailPassword string	"kAk&dee14"
+					EmailHost     string    "smtp.gmail.com"
+				*/
+				c := config.Get()
+				m.SetHeader("From", c.EmailFrom)
+				m.SetHeader("To", c.EmailTo)
 				// m.SetAddressHeader("Cc", "dan@example.com", "Dan")
 				m.SetHeader("Subject", subject)
 				m.SetBody("text/html", body.String())
 				// m.Attach("/home/Alex/lolcat.jpg")
-				d := gomail.NewDialer("smtp.gmail.com", 465, "syncboxmichele", "kAk&dee14")
+				d := gomail.NewDialer(c.EmailHost, 465, c.EmailUserName, c.EmailPassword)
 				if err := d.DialAndSend(m); err != nil {
 					log.Print("ERROR: dialer.DialAndSend error: ", err)
 					panic(err)
 				}
-			
 			}
 			// On the next iteration re-read the config, due to a config change
 		}
@@ -184,7 +189,6 @@ func wait(readConfig <-chan struct{}, waitDuration time.Duration) (timedOut bool
 // https://mmcgrana.github.io/2012/09/go-by-example-timers-and-tickers.html
 // https://gobyexample.com/channel-synchronization    Channel sync
 
-
 // Mailer returns a chan int to which any value should be sent,
 // to trigger then emailing, based on the current history.
 // func Mailer(updateInterval time.Duration) chan<- int {
@@ -201,7 +205,6 @@ func wait(readConfig <-chan struct{}, waitDuration time.Duration) (timedOut bool
 // 	}()
 // 	return commands
 // }
-
 
 func SendReport() error {
 

@@ -1,7 +1,7 @@
 {
   "DialTimeout": 10,
   "Port": "8090",
-  "AcerFilePath": "AcerPC-Sync-Status-Report.sample.txt",  
+  "AcerFilePath": "AcerPC-Sync-Status-Report.sample.txt",
   "AcerTimeZone": "AEDT",
   "SyncApiEndpoint": "http://127.0.0.1:8384/rest/db/status",
   "SyncApiKey": "W9DyRztwkNKjPe45cEAzFv4zDS9M59A9",
@@ -15,7 +15,6 @@
     "AutoEmailPeriod": "weeks",
     "AutoEmailNext": "2019-05-07 15:45:00"
   },
-
   "ReporterLogFilePath": "./reporter.log",
   "ReporterLogAutoEmail": {
     "AutoEmailEnable": true,
@@ -30,7 +29,9 @@
     "AutoEmailPeriod": "hours",
     "AutoEmailNext": "2019-02-21 22:46:00"
   },
-  "EmailTargets": [
-    "david.x.weiss@gmail.com"
-  ]
+  "EmailFrom": "syncboxmichele@gmail.com",
+  "EmailTo": "david.x.weiss@gmail.com",
+  "EmailUserName": "syncboxmichele",
+  "EmailPassword": "kAk\u0026dee14",
+  "EmailHost": "smtp.gmail.com"
 }
