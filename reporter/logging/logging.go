@@ -5,7 +5,7 @@ import (
 	"errors"
 	// "fmt"
 	"html/template"
-	// "io"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -89,6 +89,7 @@ func LoggingPage(w http.ResponseWriter, r *http.Request) {
 	loggingPageVars := LoggingPageVariables{
 		LocalServer: true,
 	}
+	fields := ValidatedFormFields{}
 	if r.Method != http.MethodPost {
 		// TODO - determine start date, as say yesterday using format "2019/02/11 11:11:42"
 		// startDate is a string like
@@ -104,7 +105,6 @@ func LoggingPage(w http.ResponseWriter, r *http.Request) {
 		if r.Form.Get("retrieve") == "yes" {
 			loggingPageVars.Settings = getSettings(r.Form.Get("LogType"), r.Form.Get("StartDate"), r.Form.Get("MaxLines"))
 			success := true
-			fields := ValidatedFormFields{}
 			for s := 0; s < len(loggingPageVars.Settings); s++ {
 				setting := &loggingPageVars.Settings[s]
 				if !setting.Readonly {
@@ -114,6 +114,9 @@ func LoggingPage(w http.ResponseWriter, r *http.Request) {
 						success = false
 					}
 				}
+			}
+			if !success {
+				fields.LogFilePath = "" // Inhibit LoggingFetch from fetching log lines
 			}
 			if success {
 				// If all the settings are valid, then fetch the records from the specified log file.
@@ -127,6 +130,22 @@ func LoggingPage(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
+	LoggingFetch(w, loggingPageVars, fields)
+}
+
+// Fetches logging records from the specified log file, and writes the expanded html string to the parm.
+// If no logFile is specified, then just write the html without any lines.  This is useful for the
+// initial page load. Errors are logged here.
+func LoggingFetch(w io.Writer, loggingPageVars LoggingPageVariables, fields ValidatedFormFields) error {
+	if len(fields.LogFilePath) > 0 {
+		lines, err := readLog(fields.LogFilePath, fields.StartDate, fields.MaxLines)
+		if err == nil {
+			loggingPageVars.LogLines = *lines
+			loggingPageVars.Message = strconv.Itoa(len(*lines)) + " log lines retrieved"
+		} else {
+			loggingPageVars.Message = err.Error()
+		}
+	}
 	t, err := template.ParseFiles("logging/logging.html")
 	if err != nil {
 		log.Print("ERROR: LoggingPage template parsing error: ", err)
@@ -135,6 +154,7 @@ func LoggingPage(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Print("ERROR: LoggingPage template executing error: ", err)
 	}
+	return nil
 }
 
 // startDate is a string like
