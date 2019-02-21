@@ -47,10 +47,8 @@ type EmailGen func(body *bytes.Buffer) (subject string, err error)
 // Waits until the next scheduled email, then sends it, and schedules the next one.
 // The channel is used to alert mailer that the config has changed and to re-load it.
 // This function will update the config in order to re-schedule the email.
-// make(chan struct{})
-// bytes.Buffer
 // Ref: https://stackoverflow.com/questions/17797754/ticker-stop-behaviour-in-golang
-func Mailer(control <-chan bool, key int, gen EmailGen) {
+func PeriodicMailer(control <-chan bool, key int, gen EmailGen) {
 	log.Printf("mailer(%s): starting\n", KeyName(key))
 	for {
 		aec := getEmailConfig(key)
@@ -73,26 +71,52 @@ func Mailer(control <-chan bool, key int, gen EmailGen) {
 			}
 			log.Printf("mailer(%s): wait completed, doReport=%v\n", KeyName(key), doReport)
 			if doReport {
-				// Time reached; email the report
-				var body bytes.Buffer
-				subject, _ := gen(&body)
-				m := gomail.NewMessage()
-				c := config.Get()
-				m.SetHeader("From", c.EmailFrom)
-				m.SetHeader("To", c.EmailTo)
-				// m.SetAddressHeader("Cc", "dan@example.com", "Dan")
-				m.SetHeader("Subject", subject)
-				m.SetBody("text/html", body.String())
-				// m.Attach("/home/Alex/lolcat.jpg")
-				d := gomail.NewDialer(c.EmailHost, 465, c.EmailUserName, c.EmailPassword)
-				if err := d.DialAndSend(m); err != nil {
-					log.Printf("ERROR: mailer(%s): dialer.DialAndSend error: %v\n", KeyName(key), err)
-				} else {
-					log.Printf("mailer(%s): emailed OK\n", KeyName(key))
-				}
+				mail(key, gen) // Time reached; email the report
 			}
 			// On the next iteration re-read the config, perhaps due to a config change
 		}
+	}
+}
+
+// HMMMM Watches a file and if changed, then sends an email.
+
+// Simply waits for a control message, either to email or to reload config.
+func IndefiniteMailer(control <-chan bool, key int, gen EmailGen) {
+	log.Printf("mailer(%s): starting\n", KeyName(key))
+	for {
+		aec := getEmailConfig(key)
+
+		// TODO this should be in the watcher goroutine
+		if !aec.AutoEmailEnable {
+			log.Printf("mailer(%s): mailer disabled\n", key)
+			return 0, nil
+		}
+
+		log.Printf("mailer(%s): waiting indefinitely...\n", KeyName(key))
+		doReport = waitIndefinite(control)
+		log.Printf("mailer(%s): wait completed, doReport=%v\n", KeyName(key), doReport)
+		if doReport {
+			mail(key, gen)
+		}
+	}
+}
+
+func mail(key int, gen EmailGen) {
+	var body bytes.Buffer
+	subject, _ := gen(&body)
+	m := gomail.NewMessage()
+	c := config.Get()
+	m.SetHeader("From", c.EmailFrom)
+	m.SetHeader("To", c.EmailTo)
+	// m.SetAddressHeader("Cc", "dan@example.com", "Dan")
+	m.SetHeader("Subject", subject)
+	m.SetBody("text/html", body.String())
+	// m.Attach("/home/Alex/lolcat.jpg")
+	d := gomail.NewDialer(c.EmailHost, 465, c.EmailUserName, c.EmailPassword)
+	if err := d.DialAndSend(m); err != nil {
+		log.Printf("ERROR: mailer(%s): dialer.DialAndSend error: %v\n", KeyName(key), err)
+	} else {
+		log.Printf("mailer(%s): emailed OK\n", KeyName(key))
 	}
 }
 
@@ -172,23 +196,26 @@ func getWaitDuration(key string, aec config.AutoEmailConfig) (time.Duration, err
 }
 
 // Wait for just a command on the control channel.
-// Return true if the command is to do immediate report email
-func waitIndefinite(control <-chan bool) (doReport bool) {
+// Return true if the command is to do immediate email.
+// If a false message was received, this means to reload config.
+func waitIndefinite(control <-chan bool) (doEmail bool) {
 	select {
-	case doReport = <-control:
-		return doReport
+	case doEmail = <-control:
+		return doEmail
 	}
 }
 
 // Wait for the specified duration, and on the receive channel.
-// Return true if the timeout was reached or false if a message received.
+// Return true to indicate an email should be sent; either because the
+// timeout was reached or because a true message was received on the
+// channel.  If a false message was received, this means to reload config.
 // Ref: https://github.com/golang/go/issues/27169
-func waitTimed(control <-chan bool, waitDuration time.Duration) (doReport bool) {
+func waitTimed(control <-chan bool, waitDuration time.Duration) (doEmail bool) {
 	timer := time.NewTimer(waitDuration)
 	defer timer.Stop()
 	select {
-	case doReport = <-control:
-		return doReport
+	case doEmail = <-control:
+		return doEmail
 	case <-timer.C:
 		return true
 	}

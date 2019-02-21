@@ -15,7 +15,7 @@
     "AutoEmailPeriod": "weeks",
     "AutoEmailNext": "2019-05-07 15:45:00"
   },
-
+  "EmailFreshBackupStatus": false,
   "ReporterLogFilePath": "./reporter.log",
   "ReporterLogAutoEmail": {
     "AutoEmailEnable": true,

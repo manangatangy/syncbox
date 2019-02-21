@@ -70,7 +70,7 @@ func main() {
 
 	// Start the mailers
 	for _, mi := range MailerInfoMap {
-		go mail.Mailer(mi.control, mi.key, mi.gen)
+		go mail.PeriodicMailer(mi.control, mi.key, mi.gen)
 	}
 
 	router := mux.NewRouter().StrictSlash(true)
@@ -159,6 +159,7 @@ func makeEmailGenerator(key int) mail.EmailGen {
 	keyName := mail.KeyName(key)
 
 	if key == mail.KEY_HISTORY {
+		// The HISTORY email occurs
 		return func(body *bytes.Buffer) (subject string, err error) {
 			if config.Get().EmailFreshBackupStatus {
 				// Optionally create a new BackupStatus and append to
