@@ -22,9 +22,9 @@ func HistoryPage(w http.ResponseWriter, r *http.Request) {
 	historyPageVariables := HistoryPageVariables{
 		LocalServer: true,
 	}
-	HistoryFetch(w, historyPageVariables)
+	HistoryFetch(w, &historyPageVariables)
 
-	// temp
+	// temp TODO remove
 	backupStatus, err := GetBackupStatus()
 	if err == nil {
 		SaveStatusToHistory(*backupStatus)
@@ -35,7 +35,7 @@ func HistoryPage(w http.ResponseWriter, r *http.Request) {
 // and writes the expanded html string to the parm.
 // Errors are logged here.
 // Nesting: https://stackoverflow.com/questions/11467731/is-it-possible-to-have-nested-templates-in-go-using-the-standard-library-googl
-func HistoryFetch(w io.Writer, historyPageVariables HistoryPageVariables) error {
+func HistoryFetch(w io.Writer, historyPageVariables *HistoryPageVariables) error {
 	history, err1 := ReadStatusHistory()
 	historyPageVariables.History = history
 	historyPageVariables.Error = err1

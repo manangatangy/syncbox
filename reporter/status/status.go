@@ -121,6 +121,16 @@ func GetBackupStatus() (*BackupStatus, error) {
 	return &backupStatus, err
 }
 
+func ShortenTimeDiff(duration string) string {
+	// Truncate after the 'm'
+	for i, r := range duration {
+		if r == 'm' {
+			return duration[0:i+1]
+		}
+	}
+	return duration
+}
+
 // Read the file contents at AcerStatusPath and create a corresponding AcerStatus
 // If an error occurs, it is logged here
 func GetAcerStatus() (*AcerStatus, error) {

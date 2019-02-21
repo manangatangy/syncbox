@@ -74,6 +74,8 @@
                         {{else}}
                             <input class="pure-input-1-3" name="{{.Id}}_Count" type="number" value="{{.Count}}" >
                             <select name="{{.Id}}_Period">
+                                <option value="secs" {{if eq .Period "secs"}}selected{{end}}>secs</option>
+                                <option value="mins" {{if eq .Period "mins"}}selected{{end}}>mins</option>
                                 <option value="hours" {{if eq .Period "hours"}}selected{{end}}>hours</option>
                                 <option value="days" {{if eq .Period "days"}}selected{{end}}>days</option>
                                 <option value="weeks" {{if eq .Period "weeks"}}selected{{end}}>weeks</option>

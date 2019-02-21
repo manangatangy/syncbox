@@ -9,7 +9,8 @@ import (
 )
 
 const (
-	TIME_FORMAT = "2006-01-02 15:04:05"
+	TIME_FORMAT               = "2006-01-02 15:04:05"
+	TIME_FORMAT_START_OF_HOUR = "2006-01-02 15:00:00"
 )
 
 type AutoEmailConfig struct {
@@ -34,8 +35,9 @@ type Configuration struct {
 	DocRoot    string // path to root of served documents (may be absolute or relative to wd) [./]
 	AssetsRoot string // path to static documents (may be absolute or relative to wd) [./static]
 
-	HistoryFile         string // Where the BackupStatus records are appended to.
-	HistoryLogAutoEmail AutoEmailConfig
+	HistoryFile            string // Where the BackupStatus records are appended to.
+	HistoryLogAutoEmail    AutoEmailConfig
+	EmailFreshBackupStatus bool // At email report time, add fresh backupStatus to history
 
 	ReporterLogFilePath  string
 	ReporterLogAutoEmail AutoEmailConfig

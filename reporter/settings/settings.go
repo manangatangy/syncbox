@@ -2,7 +2,7 @@ package settings
 
 import (
 	"errors"
-	"fmt"
+	// "fmt"
 	"html/template"
 	"log"
 	"net/http"
@@ -26,7 +26,7 @@ type Setting struct {
 	Value       string
 	Readonly    bool
 	Errored     string
-	Checked     bool
+	Checked     string // Is either "checked" or ""
 	Description string
 
 	// The validator's job is to read appropriate field value(s) from the request Form, place
@@ -128,13 +128,31 @@ func getSettings(c config.Configuration) []Setting {
 		},
 	})
 	settings = append(settings, Setting{
-		Id: "SimmonLogFilePath", Name: "Simmon Log Path", Type: "text",
-		Value: c.SimmonLogFilePath, Description: "Path to logfile for Simmon",
+		// For checkboxes, the Value is always "checked" and the Checked field is set
+		// from the form and written to the html input.
+		Id: "EmailFreshBackupStatus", Name: "Email Fresh Status", Type: "checkbox",
+		Value:       "checked",
+		Checked:     formatChecked(c.EmailFreshBackupStatus),
+		Description: "At email report time, add fresh backupStatus to history",
+		Validator: func(f url.Values, c *config.Configuration, s *Setting) error {
+			s.Checked = f.Get(s.Id)
+			c.EmailFreshBackupStatus = (s.Checked != "")
+			return nil
+		},
+	})
+	settings = append(settings, Setting{
+		Id: "HistoryFile", Name: "History File Path", Type: "text",
+		Value: c.HistoryFile, Description: "Path to History file of backup status's",
 		Readonly: true,
 	})
 	settings = append(settings, Setting{
 		Id: "ReporterLogFilePath", Name: "Reporter Log Path", Type: "text",
 		Value: c.ReporterLogFilePath, Description: "Path to logfile for Reporter",
+		Readonly: true,
+	})
+	settings = append(settings, Setting{
+		Id: "SimmonLogFilePath", Name: "Simmon Log Path", Type: "text",
+		Value: c.SimmonLogFilePath, Description: "Path to logfile for Simmon",
 		Readonly: true,
 	})
 	return settings
@@ -223,12 +241,16 @@ func CalculateNextTime(from time.Time, count int, period string) (time.Time, str
 	// Calculate next as now plus the specified period
 	// next := time.Now()
 	switch period {
+	case "secs":
+		from = from.Add(time.Second * time.Duration(count))
+	case "mins":
+		from = from.Add(time.Minute * time.Duration(count))
 	case "hours":
 		from = from.Add(time.Hour * time.Duration(count))
 	case "days":
 		from = from.AddDate(0, 0, count)
 	case "weeks":
-		from = from.AddDate(0, 0, count)
+		from = from.AddDate(0, 0, count*7)
 	}
 	return from, from.Format(config.TIME_FORMAT)
 }
@@ -267,7 +289,7 @@ func SettingsPage(w http.ResponseWriter, r *http.Request) {
 	// and for (POST, "reset") this will be the values 'returned' back to the page.
 	settingsPageVars.Settings = getSettings(config.Get())
 	settingsPageVars.AutoEmailSettings = getAutoEmailSettings(config.Get())
-	fmt.Printf("SettingsPage method ===> %v\n", r.Method)
+	// fmt.Printf("SettingsPage method ===> %v\n", r.Method)
 	if r.Method == http.MethodPost {
 		r.ParseForm()
 		if r.Form.Get("submit") == "yes" {
@@ -282,7 +304,7 @@ func SettingsPage(w http.ResponseWriter, r *http.Request) {
 				// placing error details in the Description field and setting Errored flag.
 				if !setting.Readonly {
 					// could also use "if val, ok := m[key]; ok" to test for contains
-					fmt.Printf("===> USING form value '%s' for key %s\n", setting.Value, setting.Id)
+					// fmt.Printf("===> USING form value '%s' for key %s\n", setting.Value, setting.Id)
 					if err := setting.Validator(r.Form, &c, setting); err != nil {
 						setting.Description = err.Error()
 						setting.Errored = "errored"

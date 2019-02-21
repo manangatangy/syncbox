@@ -42,15 +42,6 @@ const (
 	KEY_SIMMON   = 3
 )
 
-/*
-	f := func(body *bytes.Buffer) (subject string, err error) {
-
-		return "", nil
-	}
-
-
-*/
-
 type EmailGen func(body *bytes.Buffer) (subject string, err error)
 
 // Waits until the next scheduled email, then sends it, and schedules the next one.
@@ -59,33 +50,33 @@ type EmailGen func(body *bytes.Buffer) (subject string, err error)
 // make(chan struct{})
 // bytes.Buffer
 // Ref: https://stackoverflow.com/questions/17797754/ticker-stop-behaviour-in-golang
-func Mailer(readConfig <-chan struct{}, key int, gen EmailGen) {
+func Mailer(control <-chan bool, key int, gen EmailGen) {
+	log.Printf("mailer(%s): starting\n", KeyName(key))
 	for {
 		aec := getEmailConfig(key)
-		if waitDuration, err := getWaitDuration(keyName(key), aec); err != nil {
+		if waitDuration, err := getWaitDuration(KeyName(key), aec); err != nil {
 			// The current aec.AutoEmailNext can't be used; advance to the next time and save it.
 			_, aec.AutoEmailNext = settings.CalculateNextTime(time.Now(), aec.AutoEmailCount, aec.AutoEmailPeriod)
 			log.Printf("mailer(%s): Calculated new nextTime after %d %s ==> %s\n",
-				keyName(key), aec.AutoEmailCount, aec.AutoEmailPeriod, aec.AutoEmailNext)
+				KeyName(key), aec.AutoEmailCount, aec.AutoEmailPeriod, aec.AutoEmailNext)
 			setEmailConfig(key, aec)
 		} else {
-			log.Printf("mailer(%s): waiting...\n", keyName(key))
-			if wait(readConfig, waitDuration) {
+			var doReport bool
+			if waitDuration == 0 {
+				// Zero duration means periodic email is disabled, so just wait for control msg.
+				log.Printf("mailer(%s): waiting indefinitely...\n", KeyName(key))
+				doReport = waitIndefinite(control)
+			} else {
+				td := status.ShortenTimeDiff(waitDuration.String())
+				log.Printf("mailer(%s): waiting for timeout %s ...\n", KeyName(key), td)
+				doReport = waitTimed(control, waitDuration)
+			}
+			log.Printf("mailer(%s): wait completed, doReport=%v\n", KeyName(key), doReport)
+			if doReport {
 				// Time reached; email the report
-				log.Printf("mailer(%s): emailing\n", keyName(key))
 				var body bytes.Buffer
 				subject, _ := gen(&body)
-
 				m := gomail.NewMessage()
-				// TODO alter subkect to be summary of missing files, and since
-
-				/*
-					EmailFrom     string	"syncboxmichele@gmail.com"
-					EmailTo       string	"david.x.weiss@gmail.com"
-					EmailUserName string	"syncboxmichele"
-					EmailPassword string	"kAk&dee14"
-					EmailHost     string    "smtp.gmail.com"
-				*/
 				c := config.Get()
 				m.SetHeader("From", c.EmailFrom)
 				m.SetHeader("To", c.EmailTo)
@@ -95,17 +86,18 @@ func Mailer(readConfig <-chan struct{}, key int, gen EmailGen) {
 				// m.Attach("/home/Alex/lolcat.jpg")
 				d := gomail.NewDialer(c.EmailHost, 465, c.EmailUserName, c.EmailPassword)
 				if err := d.DialAndSend(m); err != nil {
-					log.Print("ERROR: dialer.DialAndSend error: ", err)
-					panic(err)
+					log.Printf("ERROR: mailer(%s): dialer.DialAndSend error: %v\n", KeyName(key), err)
+				} else {
+					log.Printf("mailer(%s): emailed OK\n", KeyName(key))
 				}
 			}
-			// On the next iteration re-read the config, due to a config change
+			// On the next iteration re-read the config, perhaps due to a config change
 		}
 	}
 }
 
 func getEmailConfig(key int) (emailConfig config.AutoEmailConfig) {
-	log.Printf("mailer(%s): Reading email config\n", keyName(key))
+	log.Printf("mailer(%s): Reading email config\n", KeyName(key))
 	c := config.Get()
 	switch key {
 	case KEY_HISTORY:
@@ -133,10 +125,10 @@ func setEmailConfig(key int, emailConfig config.AutoEmailConfig) {
 		log.Fatal("FATAL: setEmailConfig bad key:" + string(key))
 	}
 	config.Set(c)
-	log.Printf("mailer(%s): Saved email config\n", keyName(key))
+	log.Printf("mailer(%s): Saved email config\n", KeyName(key))
 }
 
-func keyName(key int) (keyName string) {
+func KeyName(key int) (keyName string) {
 	switch key {
 	case KEY_HISTORY:
 		keyName = "HISTORY"
@@ -149,14 +141,21 @@ func keyName(key int) (keyName string) {
 }
 
 // Use the config to determine the wait duration, or an error.
+// No error and zero duration means mailing is disabled.
 // Also logs the error here.
 func getWaitDuration(key string, aec config.AutoEmailConfig) (time.Duration, error) {
-	if nextTime, err := time.Parse(config.TIME_FORMAT, aec.AutoEmailNext); err != nil {
+	if !aec.AutoEmailEnable {
+		log.Printf("mailer(%s): mailer disabled\n", key)
+		return 0, nil
+	}
+	loc, _ := time.LoadLocation("Local")
+	if nextTime, err := time.ParseInLocation(config.TIME_FORMAT, aec.AutoEmailNext, loc); err != nil {
 		log.Printf("ERROR: mailer(%s) parsing '%s' error: %s\n", key, aec.AutoEmailNext, err.Error())
 		return 0, err
 	} else {
 		now := time.Now()
-		if nextTime.Before(now) {
+		if !nextTime.After(now) {
+			// Consider (nextTime == now) to be too late also.
 			log.Printf("mailer(%s): Config next email time %s has expired\n", key, aec.AutoEmailNext)
 			return 0, errors.New("next email time has expired")
 		} else {
@@ -172,13 +171,24 @@ func getWaitDuration(key string, aec config.AutoEmailConfig) (time.Duration, err
 	}
 }
 
+// Wait for just a command on the control channel.
+// Return true if the command is to do immediate report email
+func waitIndefinite(control <-chan bool) (doReport bool) {
+	select {
+	case doReport = <-control:
+		return doReport
+	}
+}
+
+// Wait for the specified duration, and on the receive channel.
+// Return true if the timeout was reached or false if a message received.
 // Ref: https://github.com/golang/go/issues/27169
-func wait(readConfig <-chan struct{}, waitDuration time.Duration) (timedOut bool) {
+func waitTimed(control <-chan bool, waitDuration time.Duration) (doReport bool) {
 	timer := time.NewTimer(waitDuration)
 	defer timer.Stop()
 	select {
-	case <-readConfig:
-		return false
+	case doReport = <-control:
+		return doReport
 	case <-timer.C:
 		return true
 	}
@@ -205,31 +215,4 @@ func wait(readConfig <-chan struct{}, waitDuration time.Duration) (timedOut bool
 // 	}()
 // 	return commands
 // }
-
-func SendReport() error {
-
-	var body bytes.Buffer
-	body.Write([]byte("Hello <b>Bob</b> and <i>Cora</i>!\n"))
-	historyPageVariables := status.HistoryPageVariables{
-		LocalServer: false,
-	}
-	if err := status.HistoryFetch(&body, historyPageVariables); err != nil {
-		// Email the error message instead of the report
-		body.WriteString(err.Error())
-	}
-	m := gomail.NewMessage()
-	// todo get  to/from from configuration
-	// todo akter subkect to be summary of missing files, and since
-	m.SetHeader("From", "syncboxmichele@gmail.com")
-	m.SetHeader("To", "david.x.weiss@gmail.com")
-	// m.SetAddressHeader("Cc", "dan@example.com", "Dan")
-	m.SetHeader("Subject", "Hello!")
-	m.SetBody("text/html", body.String())
-	// m.Attach("/home/Alex/lolcat.jpg")
-	d := gomail.NewDialer("smtp.gmail.com", 465, "syncboxmichele", "kAk&dee14")
-	if err := d.DialAndSend(m); err != nil {
-		log.Print("ERROR: dialer.DialAndSend error: ", err)
-		panic(err)
-	}
-	return nil
-}
+// type EmailGen func(body *bytes.Buffer) (subject string, err error)

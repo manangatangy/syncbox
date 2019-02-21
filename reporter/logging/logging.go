@@ -119,6 +119,7 @@ func LoggingPage(w http.ResponseWriter, r *http.Request) {
 				fields.LogFilePath = "" // Inhibit LoggingFetch from fetching log lines
 			}
 			if success {
+				// TODODODODO - this code is duplicated below !!!!!
 				// If all the settings are valid, then fetch the records from the specified log file.
 				lines, err := readLog(fields.LogFilePath, fields.StartDate, fields.MaxLines)
 				if err == nil {
@@ -193,7 +194,7 @@ func readLog(logFilePath, startDate string, maxLines int) (*[]string, error) {
 // Return true if the line should passes the matching test, and is the
 // first of the selected /extracted lines.  The matching test is only
 // passed if ;
-// 1. the prefix is ampty string, or
+// 1. the prefix is empty string, or
 // 2. the prefix is an exact prefix of the line, or
 // 3. both strings are time-stamps and the prefix-time occurs before/equal
 // to line-time.  This test is processed according to;

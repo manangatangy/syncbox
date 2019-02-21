@@ -11,16 +11,17 @@
   "HistoryFile": "./history.json",
   "HistoryLogAutoEmail": {
     "AutoEmailEnable": true,
-    "AutoEmailCount": 24,
-    "AutoEmailPeriod": "hours",
-    "AutoEmailNext": "2019-02-20 15:53:00"
+    "AutoEmailCount": 15,
+    "AutoEmailPeriod": "secs",
+    "AutoEmailNext": "2019-02-21 16:50:27"
   },
+  "EmailFreshBackupStatus": false,
   "ReporterLogFilePath": "./reporter.log",
   "ReporterLogAutoEmail": {
     "AutoEmailEnable": false,
-    "AutoEmailCount": 4,
-    "AutoEmailPeriod": "days",
-    "AutoEmailNext": "2019-02-23 15:53:00"
+    "AutoEmailCount": 1,
+    "AutoEmailPeriod": "hours",
+    "AutoEmailNext": "2019-02-21 16:29:26"
   },
   "SimmonLogFilePath": "../simmon-sample.log",
   "SimmonLogAutoEmail": {
@@ -32,6 +33,6 @@
   "EmailFrom": "syncboxmichele@gmail.com",
   "EmailTo": "david.x.weiss@gmail.com",
   "EmailUserName": "syncboxmichele",
-  "EmailPassword": "kAk&dee14",
+  "EmailPassword": "kAk\u0026dee14",
   "EmailHost": "smtp.gmail.com"
 }
