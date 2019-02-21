@@ -3,6 +3,7 @@ package status
 import (
 	"bufio"
 	"encoding/json"
+	"errors"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -78,18 +79,23 @@ type SyncthingStatus struct {
 // If an error occurs, it is logged here, and a partially populated BackupStatus is returned.
 // Missing counts will be -1 to indicate an error with either or both the get calls.
 func GetBackupStatus() (*BackupStatus, error) {
+	var errText string
 	backupStatus := BackupStatus{}
 	serverTime := time.Now()
 	backupStatus.ServerTime = serverTime.Format(REPORT_TIME_FORMAT)
 
 	syncthingStatus, err1 := GetSyncthingStatus()
-	if err1 == nil {
+	if err1 != nil {
+		errText = err1.Error()
+	} else {
 		// fmt.Printf("syncthingStatus ==> %v\n", syncthingStatus)
 		backupStatus.BackedUpFiles = syncthingStatus.LocalFiles
 		backupStatus.BackedUpBytes = syncthingStatus.LocalBytes
 	}
 	acerStatus, err2 := GetAcerStatus()
-	if err2 == nil {
+	if err2 != nil {
+		errText = errText + " + " + err2.Error()
+	} else {
 		// fmt.Printf("acerStatus ==> %v\n", acerStatus)
 		backupStatus.AcerFiles = acerStatus.FileCount
 		backupStatus.AcerBytes = acerStatus.ByteCount
@@ -99,14 +105,20 @@ func GetBackupStatus() (*BackupStatus, error) {
 			backupStatus.MissingBytes = backupStatus.AcerBytes - backupStatus.BackedUpBytes
 			// The AcerTimeString as read from the file, is parsed and then reformatted nicely.
 			acerTime, err3 := parseAcerTimeStamp(backupStatus.AcerTimeStamp)
-			if err3 == nil {
+			if err3 != nil {
+				errText = errText + " + " + err3.Error()
+			} else {
 				backupStatus.AcerTimeStamp = acerTime.Format(REPORT_TIME_FORMAT)
 				diff := serverTime.Sub(*acerTime)
 				backupStatus.AcerAge = diff.String()
 			}
 		}
 	}
-	return &backupStatus, nil
+	var err error
+	if len(errText) > 0 {
+		err = errors.New(errText)
+	}
+	return &backupStatus, err
 }
 
 // Read the file contents at AcerStatusPath and create a corresponding AcerStatus
