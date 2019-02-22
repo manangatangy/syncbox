@@ -9,14 +9,14 @@
   "DocRoot": "./",
   "AssetsRoot": "./assets",
   "EnableAcerFileWatch": true,
-  "AcerFileWatchPeriod": 11,
+  "AcerFileWatchPeriod": 1000,
   "HistoryFileAutoAppend": false,
   "HistoryFile": "./history.json",
   "HistoryLogAutoEmail": {
     "AutoEmailEnable": false,
     "AutoEmailCount": 15,
     "AutoEmailPeriod": "mins",
-    "AutoEmailNext": "2019-02-22 15:19:10"
+    "AutoEmailNext": "2019-02-22 17:44:20"
   },
   "ReporterLogFilePath": "./reporter.log",
   "ReporterLogAutoEmail": {
@@ -28,9 +28,9 @@
   "SimmonLogFilePath": "../simmon-sample.log",
   "SimmonLogAutoEmail": {
     "AutoEmailEnable": false,
-    "AutoEmailCount": 20,
+    "AutoEmailCount": 200,
     "AutoEmailPeriod": "secs",
-    "AutoEmailNext": "2019-02-22 15:31:50"
+    "AutoEmailNext": "2019-02-22 17:33:28"
   },
   "EmailFrom": "syncboxmichele@gmail.com",
   "EmailTo": "david.x.weiss@gmail.com",

@@ -152,6 +152,7 @@ func getSettings(c config.Configuration) []Setting {
 		Validator: func(f url.Values, c *config.Configuration, s *Setting) error {
 			s.Checked = f.Get(s.Id)
 			c.EnableAcerFileWatch = (s.Checked != "")
+			config.ReloadConfig(config.KEY_STATUS)
 			return nil
 		},
 	})
@@ -195,6 +196,7 @@ type AutoEmailSetting struct {
 	NextEmail   string
 	Description string
 	Errored     string
+	Key         int
 
 	// The validator's job is to read appropriate field value(s) from the request Form, place
 	// them into the setting for reply to the page, and also (if they validate OK) write them
@@ -231,7 +233,7 @@ func parseChecked(checked string) bool {
 
 type GetAutoConfig func(c *config.Configuration) (aec *config.AutoEmailConfig)
 
-func makeAutoEmailSetting(shortName string, id string, c config.Configuration, get GetAutoConfig) AutoEmailSetting {
+func makeAutoEmailSetting(shortName string, id string, c config.Configuration, get GetAutoConfig, key int) AutoEmailSetting {
 	var aec *config.AutoEmailConfig = get(&c)
 	return AutoEmailSetting{
 		Id: id, Name: shortName + " Auto Email",
@@ -240,13 +242,18 @@ func makeAutoEmailSetting(shortName string, id string, c config.Configuration, g
 		Period:      aec.AutoEmailPeriod,
 		NextEmail:   aec.AutoEmailNext,
 		Description: "Check to enable auto emailing of " + shortName + " logs",
+		Key:         key,
 		Validator: func(f url.Values, s *AutoEmailSetting, c *config.Configuration) error {
 			var aec *config.AutoEmailConfig = get(c)
 			// Validation is only performed (and the nextEmail value updated) if the checkbox is
 			// changed from clear (during which the Count, Period can be entered) to set (after which
 			// Count and Period are readonly).
 			s.Checked = f.Get(shortName + "LogAutoEmail_Checked")
+			// checkbox has changed from set -> clear
+			reload := (aec.AutoEmailEnable && (s.Checked == ""))
 			if !aec.AutoEmailEnable && (s.Checked != "") {
+				// checkbox has changed from clear -> set
+				reload = true
 				s.Count = f.Get(shortName + "LogAutoEmail_Count")
 				s.Period = f.Get(shortName + "LogAutoEmail_Period")
 				// Update the Period, count, next fields
@@ -260,6 +267,9 @@ func makeAutoEmailSetting(shortName string, id string, c config.Configuration, g
 				s.Period = aec.AutoEmailPeriod
 			}
 			aec.AutoEmailEnable = (s.Checked != "")
+			if reload {
+				config.ReloadConfig(key)
+			}
 			return nil
 		},
 	}
@@ -294,17 +304,17 @@ func getAutoEmailSettings(c config.Configuration) []AutoEmailSetting {
 		makeAutoEmailSetting("History", "HistoryLogAutoEmail", c,
 			func(c *config.Configuration) (aec *config.AutoEmailConfig) {
 				return &c.HistoryLogAutoEmail
-			}))
+			}, config.KEY_HISTORY))
 	settings = append(settings,
 		makeAutoEmailSetting("Reporter", "ReporterLogAutoEmail", c,
 			func(c *config.Configuration) (aec *config.AutoEmailConfig) {
 				return &c.ReporterLogAutoEmail
-			}))
+			}, config.KEY_REPORTER))
 	settings = append(settings,
 		makeAutoEmailSetting("Simmon", "SimmonLogAutoEmail", c,
 			func(c *config.Configuration) (aec *config.AutoEmailConfig) {
 				return &c.SimmonLogAutoEmail
-			}))
+			}, config.KEY_SIMMON))
 
 	return settings
 }

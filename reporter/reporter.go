@@ -29,42 +29,6 @@ const (
 	STATIC_DIR = "/static/" // prefix for urls withing templated html
 )
 
-// type MailerInfo struct {
-// 	key     int
-// 	gen     mail.EmailGen
-// 	control chan mail.ControlMsg // signals to mailer
-// }
-
-// var MailerInfoMap = map[int]MailerInfo{
-// 	mail.KEY_HISTORY: MailerInfo{
-// 		key:     mail.KEY_HISTORY,
-// 		gen:     makeEmailGenerator(mail.KEY_HISTORY),
-// 		control: make(chan mail.ControlMsg),
-// 	},
-// 	// mail.KEY_REPORTER: MailerInfo{
-// 	// 	key:     mail.,
-// 	// 	gen:     makeEmailGenerator(mail.KEY_REPORTER),
-// 	// 	control: make(chan mail.ControlMsg),
-// 	// },
-// 	// mail.KEY_SIMMON: MailerInfo{
-// 	// 	key:     mail.,
-// 	// 	gen:     makeEmailGenerator(mail.KEY_SIMMON),
-// 	// 	control: make(chan mail.ControlMsg),
-// 	// },
-// 	mail.KEY_STATUS: MailerInfo{
-// 		key:     mail.KEY_STATUS,
-// 		gen:     makeEmailGenerator(mail.KEY_STATUS),
-// 		control: make(chan mail.ControlMsg),
-// 	},
-// }
-
-var MailerControl = map[int]chan mail.ControlMsg{
-	mail.KEY_HISTORY:  make(chan mail.ControlMsg),
-	mail.KEY_REPORTER: make(chan mail.ControlMsg),
-	mail.KEY_SIMMON:   make(chan mail.ControlMsg),
-	mail.KEY_STATUS:   make(chan mail.ControlMsg),
-}
-
 func main() {
 	// Only -config=cfgpath and -logfile=logpath are supported.
 	logFilePath := flag.String("logfile", "", "path to log file")
@@ -79,12 +43,18 @@ func main() {
 
 	log.Println("STARTING ...")
 	config.Path(*configPath)
+	config.MailerControl = map[int]chan config.ControlMsg{
+		config.KEY_HISTORY:  make(chan config.ControlMsg),
+		config.KEY_REPORTER: make(chan config.ControlMsg),
+		config.KEY_SIMMON:   make(chan config.ControlMsg),
+		config.KEY_STATUS:   make(chan config.ControlMsg),
+	}
 
 	// Start the mailers
-	go mail.PeriodicMailer(MailerControl[mail.KEY_HISTORY], mail.KEY_HISTORY, makeGen(mail.KEY_HISTORY))
-	go mail.PeriodicMailer(MailerControl[mail.KEY_REPORTER], mail.KEY_REPORTER, makeGen(mail.KEY_REPORTER))
-	go mail.PeriodicMailer(MailerControl[mail.KEY_SIMMON], mail.KEY_SIMMON, makeGen(mail.KEY_SIMMON))
-	go mail.WatcherMailer(MailerControl[mail.KEY_STATUS], mail.KEY_STATUS, makeGen(mail.KEY_STATUS))
+	go mail.PeriodicMailer(config.MailerControl[config.KEY_HISTORY], config.KEY_HISTORY, makeGen(config.KEY_HISTORY))
+	go mail.PeriodicMailer(config.MailerControl[config.KEY_REPORTER], config.KEY_REPORTER, makeGen(config.KEY_REPORTER))
+	go mail.PeriodicMailer(config.MailerControl[config.KEY_SIMMON], config.KEY_SIMMON, makeGen(config.KEY_SIMMON))
+	go mail.WatcherMailer(config.MailerControl[config.KEY_STATUS], config.KEY_STATUS, makeGen(config.KEY_STATUS))
 
 	router := mux.NewRouter().StrictSlash(true)
 
@@ -169,10 +139,10 @@ func getOutboundIP() net.IP {
 // ------------------------------------------
 
 func makeGen(key int) mail.EmailGen {
-	keyName := mail.KeyName[key]
+	keyName := config.KeyName[key]
 
 	switch key {
-	case mail.KEY_HISTORY:
+	case config.KEY_HISTORY:
 		return func(body *bytes.Buffer) (subject string, err error) {
 			if config.Get().HistoryFileAutoAppend {
 				// Optionally create a new BackupStatus and append to
@@ -207,7 +177,7 @@ func makeGen(key int) mail.EmailGen {
 			}
 			return subject, err
 		}
-	case mail.KEY_STATUS:
+	case config.KEY_STATUS:
 		return func(body *bytes.Buffer) (subject string, err error) {
 			subject = keyName + " report"
 			body.Write([]byte("ReportTime <b>" + time.Now().Format(config.TIME_FORMAT) + "</b>\n"))
@@ -235,7 +205,7 @@ func makeGen(key int) mail.EmailGen {
 				StartDate: reportTime,
 				MaxLines:  10000,
 			}
-			if key == mail.KEY_SIMMON {
+			if key == config.KEY_SIMMON {
 				fields.LogFilePath = config.Get().SimmonLogFilePath
 			} else {
 				fields.LogFilePath = config.Get().ReporterLogFilePath

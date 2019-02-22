@@ -60,6 +60,40 @@ var configuration Configuration // Current config, not used directly outside of 
 var cached bool
 var mutex = &sync.Mutex{}
 
+const (
+	KEY_HISTORY  = 1
+	KEY_REPORTER = 2
+	KEY_SIMMON   = 3
+	KEY_STATUS   = 4
+)
+
+var KeyName = map[int]string{
+	KEY_HISTORY:  "HISTORY",
+	KEY_REPORTER: "REPORTER",
+	KEY_SIMMON:   "SIMMON",
+	KEY_STATUS:   "STATUS",
+}
+
+const (
+	CONTROL_CONFIG_CHANGE   = 1
+	CONTROL_EMAIL_IMMEDIATE = 2
+	CONTROL_TIMER_EXPIRED   = 3
+)
+
+var MsgName = map[ControlMsg]string{
+	CONTROL_CONFIG_CHANGE:   "CONTROL_CONFIG_CHANGE",
+	CONTROL_EMAIL_IMMEDIATE: "CONTROL_EMAIL_IMMEDIATE",
+	CONTROL_TIMER_EXPIRED:   "CONTROL_TIMER_EXPIRED",
+}
+
+type ControlMsg int
+
+var MailerControl map[int]chan ControlMsg
+
+func ReloadConfig(key int) {
+	MailerControl[key] <- CONTROL_CONFIG_CHANGE
+}
+
 func Path(path string) {
 	mutex.Lock()
 	defer mutex.Unlock()
