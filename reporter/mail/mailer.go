@@ -25,79 +25,129 @@ import (
 	"log"
 	// "net"
 	// "net/http"
-	// "os"
+	"os"
 	// "os/exec"
 	// "regexp"
 	"errors"
-	// "fmt"
+	"fmt"
 	"reporter/config"
 	"reporter/settings"
 	"reporter/status"
 	"time"
+	// "github.com/go-fsnotify/fsnotify"
 )
 
 const (
 	KEY_HISTORY  = 1
 	KEY_REPORTER = 2
 	KEY_SIMMON   = 3
+	KEY_STATUS   = 4
 )
 
+var KeyName = map[int]string{
+	KEY_HISTORY:   "HISTORY",
+	KEY_REPORTER: "REPORTER",
+	KEY_SIMMON:   "SIMMON",
+	KEY_STATUS: "STATUS",
+}
+
 type EmailGen func(body *bytes.Buffer) (subject string, err error)
+
+type ControlMsg int
+
+const (
+	CONTROL_CONFIG_CHANGE   = 1
+	CONTROL_EMAIL_IMMEDIATE = 2
+	CONTROL_TIMER_EXPIRED   = 3
+)
+
+var MsgName = map[ControlMsg]string{
+	CONTROL_CONFIG_CHANGE:   "CONTROL_CONFIG_CHANGE",
+	CONTROL_EMAIL_IMMEDIATE: "CONTROL_EMAIL_IMMEDIATE",
+	CONTROL_TIMER_EXPIRED:   "CONTROL_TIMER_EXPIRED",
+}
 
 // Waits until the next scheduled email, then sends it, and schedules the next one.
 // The channel is used to alert mailer that the config has changed and to re-load it.
 // This function will update the config in order to re-schedule the email.
 // Ref: https://stackoverflow.com/questions/17797754/ticker-stop-behaviour-in-golang
-func PeriodicMailer(control <-chan bool, key int, gen EmailGen) {
-	log.Printf("mailer(%s): starting\n", KeyName(key))
+func PeriodicMailer(control <-chan ControlMsg, key int, gen EmailGen) {
+	log.Printf("mailer(%s): starting\n", KeyName[key])
 	for {
 		aec := getEmailConfig(key)
-		if waitDuration, err := getWaitDuration(KeyName(key), aec); err != nil {
+		if waitDuration, err := getWaitDuration(KeyName[key], aec); err != nil {
 			// The current aec.AutoEmailNext can't be used; advance to the next time and save it.
 			_, aec.AutoEmailNext = settings.CalculateNextTime(time.Now(), aec.AutoEmailCount, aec.AutoEmailPeriod)
 			log.Printf("mailer(%s): Calculated new nextTime after %d %s ==> %s\n",
-				KeyName(key), aec.AutoEmailCount, aec.AutoEmailPeriod, aec.AutoEmailNext)
+				KeyName[key], aec.AutoEmailCount, aec.AutoEmailPeriod, aec.AutoEmailNext)
 			setEmailConfig(key, aec)
 		} else {
-			var doReport bool
+			var msg ControlMsg
 			if waitDuration == 0 {
 				// Zero duration means periodic email is disabled, so just wait for control msg.
-				log.Printf("mailer(%s): waiting indefinitely...\n", KeyName(key))
-				doReport = waitIndefinite(control)
+				log.Printf("mailer(%s): waiting indefinitely...\n", KeyName[key])
+				msg = waitIndefinite(control)
 			} else {
 				td := status.ShortenTimeDiff(waitDuration.String())
-				log.Printf("mailer(%s): waiting for timeout %s ...\n", KeyName(key), td)
-				doReport = waitTimed(control, waitDuration)
+				log.Printf("mailer(%s): waiting for timeout %s ...\n", KeyName[key], td)
+				msg = waitTimed(control, waitDuration)
 			}
-			log.Printf("mailer(%s): wait completed, doReport=%v\n", KeyName(key), doReport)
-			if doReport {
+			log.Printf("mailer(%s): wait completed, msg: %s\n", KeyName[key], MsgName[msg])
+			if msg != CONTROL_CONFIG_CHANGE {
 				mail(key, gen) // Time reached; email the report
 			}
-			// On the next iteration re-read the config, perhaps due to a config change
 		}
 	}
 }
 
 // HMMMM Watches a file and if changed, then sends an email.
 
-// Simply waits for a control message, either to email or to reload config.
-func IndefiniteMailer(control <-chan bool, key int, gen EmailGen) {
-	log.Printf("mailer(%s): starting\n", KeyName(key))
+// Simply waits for a control message, either that the acerfile has changed or to reload config.
+func WatcherMailer(control <-chan ControlMsg, key int, gen EmailGen) {
+	log.Printf("Wmailer(%s): starting\n", KeyName[key])
+	filePath := config.Get().AcerFilePath
+	currentModTime, err := getModTime(filePath)
+	if err != nil {
+		// Ignore error; modTime will be empty but still comparable to polled value.
+		log.Printf("ERROR: mailer(%s): getModTime(%s) error: %v\n", KeyName[key], filePath, err)
+	}
 	for {
-		aec := getEmailConfig(key)
-
-		// TODO this should be in the watcher goroutine
-		if !aec.AutoEmailEnable {
-			log.Printf("mailer(%s): mailer disabled\n", key)
-			return 0, nil
+		c := config.Get()
+		var msg ControlMsg
+		if !c.EnableAcerFileWatch {
+			fmt.Printf("TEMP ===> mailer(%s): waiting indefinitely...\n", KeyName[key])
+			msg = waitIndefinite(control)
+		} else {
+			secs := c.AcerFileWatchPeriod
+			if secs < 10 {
+				secs = 10 // Minimum polling period
+			}
+			waitDuration := time.Duration(secs) * time.Second
+			msg = waitTimed(control, waitDuration)
+			if msg == CONTROL_CONFIG_CHANGE {
+				log.Printf("mailer(%s): config change occurred\n", KeyName[key])
+			} else {
+				// Check for a file change
+				modTime, err := getModTime(c.AcerFilePath)
+				if err != nil {
+					log.Printf("ERROR: mailer(%s): os.Stat(%s) error: %v\n", KeyName[key], c.AcerFilePath, err)
+				} else {
+					if !modTime.Equal(currentModTime) {
+						mail(key, gen)
+						currentModTime = modTime
+					}
+				}
+			}
 		}
+	}
+}
 
-		log.Printf("mailer(%s): waiting indefinitely...\n", KeyName(key))
-		doReport = waitIndefinite(control)
-		log.Printf("mailer(%s): wait completed, doReport=%v\n", KeyName(key), doReport)
-		if doReport {
-			mail(key, gen)
-		}
+func getModTime(filePath string) (time.Time, error) {
+	fi, err := os.Stat(filePath)
+	if err != nil {
+		return fi.ModTime(), nil
+	} else {
+		return time.Time{}, err
 	}
 }
 
@@ -114,14 +164,14 @@ func mail(key int, gen EmailGen) {
 	// m.Attach("/home/Alex/lolcat.jpg")
 	d := gomail.NewDialer(c.EmailHost, 465, c.EmailUserName, c.EmailPassword)
 	if err := d.DialAndSend(m); err != nil {
-		log.Printf("ERROR: mailer(%s): dialer.DialAndSend error: %v\n", KeyName(key), err)
+		log.Printf("ERROR: mailer(%s): dialer.DialAndSend error: %v\n", KeyName[key], err)
 	} else {
-		log.Printf("mailer(%s): emailed OK\n", KeyName(key))
+		log.Printf("mailer(%s): emailed OK\n", KeyName[key])
 	}
 }
 
 func getEmailConfig(key int) (emailConfig config.AutoEmailConfig) {
-	log.Printf("mailer(%s): Reading email config\n", KeyName(key))
+	log.Printf("mailer(%s): Reading email config\n", KeyName[key])
 	c := config.Get()
 	switch key {
 	case KEY_HISTORY:
@@ -149,10 +199,10 @@ func setEmailConfig(key int, emailConfig config.AutoEmailConfig) {
 		log.Fatal("FATAL: setEmailConfig bad key:" + string(key))
 	}
 	config.Set(c)
-	log.Printf("mailer(%s): Saved email config\n", KeyName(key))
+	log.Printf("mailer(%s): Saved email config\n", KeyName[key])
 }
 
-func KeyName(key int) (keyName string) {
+func xxxKeyName(key int) (keyName string) {
 	switch key {
 	case KEY_HISTORY:
 		keyName = "HISTORY"
@@ -196,28 +246,24 @@ func getWaitDuration(key string, aec config.AutoEmailConfig) (time.Duration, err
 }
 
 // Wait for just a command on the control channel.
-// Return true if the command is to do immediate email.
 // If a false message was received, this means to reload config.
-func waitIndefinite(control <-chan bool) (doEmail bool) {
+func waitIndefinite(control <-chan ControlMsg) (msg ControlMsg) {
 	select {
-	case doEmail = <-control:
-		return doEmail
+	case msg = <-control:
+		return msg
 	}
 }
 
-// Wait for the specified duration, and on the receive channel.
-// Return true to indicate an email should be sent; either because the
-// timeout was reached or because a true message was received on the
-// channel.  If a false message was received, this means to reload config.
+// Wait for the specified duration, and on the control channel.
 // Ref: https://github.com/golang/go/issues/27169
-func waitTimed(control <-chan bool, waitDuration time.Duration) (doEmail bool) {
+func waitTimed(control <-chan ControlMsg, waitDuration time.Duration) (msg ControlMsg) {
 	timer := time.NewTimer(waitDuration)
 	defer timer.Stop()
 	select {
-	case doEmail = <-control:
-		return doEmail
+	case msg = <-control:
+		return msg
 	case <-timer.C:
-		return true
+		return CONTROL_TIMER_EXPIRED
 	}
 }
 
@@ -225,21 +271,3 @@ func waitTimed(control <-chan bool, waitDuration time.Duration) (doEmail bool) {
 // https://github.com/andlabs/wakeup     MainWIndow app FTW!
 // https://mmcgrana.github.io/2012/09/go-by-example-timers-and-tickers.html
 // https://gobyexample.com/channel-synchronization    Channel sync
-
-// Mailer returns a chan int to which any value should be sent,
-// to trigger then emailing, based on the current history.
-// func Mailer(updateInterval time.Duration) chan<- int {
-// 	commands := make(chan int)
-// 	urlStatus := make(map[string]string)
-// 	ticker := time.NewTicker(updateInterval)
-// 	go func() {
-// 		for {
-// 			select {
-// 			case c := <-commands:
-// 				SendReport()
-// 			}
-// 		}
-// 	}()
-// 	return commands
-// }
-// type EmailGen func(body *bytes.Buffer) (subject string, err error)

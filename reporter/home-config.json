@@ -10,23 +10,24 @@
   "AssetsRoot": "./assets",
   "HistoryFile": "./history.json",
   "HistoryLogAutoEmail": {
-    "AutoEmailEnable": true,
+    "AutoEmailEnable": false,
     "AutoEmailCount": 11,
     "AutoEmailPeriod": "weeks",
     "AutoEmailNext": "2019-05-07 15:45:00"
   },
   "EnableAcerFileWatch": false,
+  "AcerFileWatchPeriod": 600,
   "HistoryFileAutoAppend": false,
   "ReporterLogFilePath": "./reporter.log",
   "ReporterLogAutoEmail": {
-    "AutoEmailEnable": true,
+    "AutoEmailEnable": false,
     "AutoEmailCount": 11,
     "AutoEmailPeriod": "weeks",
     "AutoEmailNext": "2019-05-07 15:45:00"
   },
   "SimmonLogFilePath": "../simmon-sample.log",
   "SimmonLogAutoEmail": {
-    "AutoEmailEnable": true,
+    "AutoEmailEnable": false,
     "AutoEmailCount": 55,
     "AutoEmailPeriod": "hours",
     "AutoEmailNext": "2019-02-21 22:46:00"

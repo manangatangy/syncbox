@@ -8,15 +8,16 @@
   "SyncFolderId": "w7vhz-txgya",
   "DocRoot": "./",
   "AssetsRoot": "./assets",
+  "EnableAcerFileWatch": false,
+  "AcerFileWatchPeriod": 600,
+  "HistoryFileAutoAppend": false,
   "HistoryFile": "./history.json",
   "HistoryLogAutoEmail": {
-    "AutoEmailEnable": true,
+    "AutoEmailEnable": false,
     "AutoEmailCount": 15,
     "AutoEmailPeriod": "secs",
-    "AutoEmailNext": "2019-02-21 16:50:27"
+    "AutoEmailNext": "2019-02-22 12:50:48"
   },
-  "EnableAcerFileWatch": false,
-  "HistoryFileAutoAppend": false,
   "ReporterLogFilePath": "./reporter.log",
   "ReporterLogAutoEmail": {
     "AutoEmailEnable": false,

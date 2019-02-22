@@ -29,28 +29,40 @@ const (
 	STATIC_DIR = "/static/" // prefix for urls withing templated html
 )
 
-type MailerInfo struct {
-	key     int
-	gen     mail.EmailGen
-	control chan bool // signals to mailer; true ==> immediate email, false ==> reload config
-}
+// type MailerInfo struct {
+// 	key     int
+// 	gen     mail.EmailGen
+// 	control chan mail.ControlMsg // signals to mailer
+// }
 
-var MailerInfoMap = map[int]MailerInfo{
-	mail.KEY_HISTORY: MailerInfo{
-		key:     mail.KEY_HISTORY,
-		gen:     makeEmailGenerator(mail.KEY_HISTORY),
-		control: make(chan bool),
-	},
-	// mail.KEY_REPORTER: MailerInfo{
-	// 	key:     mail.KEY_REPORTER,
-	// 	gen:     makeEmailGenerator(mail.KEY_REPORTER),
-	// 	control: make(chan bool),
-	// },
-	// mail.KEY_SIMMON: MailerInfo{
-	// 	key:     mail.KEY_SIMMON,
-	// 	gen:     makeEmailGenerator(mail.KEY_SIMMON),
-	// 	control: make(chan bool),
-	// },
+// var MailerInfoMap = map[int]MailerInfo{
+// 	mail.KEY_HISTORY: MailerInfo{
+// 		key:     mail.KEY_HISTORY,
+// 		gen:     makeEmailGenerator(mail.KEY_HISTORY),
+// 		control: make(chan mail.ControlMsg),
+// 	},
+// 	// mail.KEY_REPORTER: MailerInfo{
+// 	// 	key:     mail.,
+// 	// 	gen:     makeEmailGenerator(mail.KEY_REPORTER),
+// 	// 	control: make(chan mail.ControlMsg),
+// 	// },
+// 	// mail.KEY_SIMMON: MailerInfo{
+// 	// 	key:     mail.,
+// 	// 	gen:     makeEmailGenerator(mail.KEY_SIMMON),
+// 	// 	control: make(chan mail.ControlMsg),
+// 	// },
+// 	mail.KEY_STATUS: MailerInfo{
+// 		key:     mail.KEY_STATUS,
+// 		gen:     makeEmailGenerator(mail.KEY_STATUS),
+// 		control: make(chan mail.ControlMsg),
+// 	},
+// }
+
+var MailerControl = map[int]chan mail.ControlMsg{
+	mail.KEY_HISTORY:  make(chan mail.ControlMsg),
+	mail.KEY_REPORTER: make(chan mail.ControlMsg),
+	mail.KEY_SIMMON:   make(chan mail.ControlMsg),
+	mail.KEY_STATUS:   make(chan mail.ControlMsg),
 }
 
 func main() {
@@ -69,9 +81,10 @@ func main() {
 	config.Path(*configPath)
 
 	// Start the mailers
-	for _, mi := range MailerInfoMap {
-		go mail.PeriodicMailer(mi.control, mi.key, mi.gen)
-	}
+	go mail.PeriodicMailer(MailerControl[mail.KEY_HISTORY], mail.KEY_HISTORY, makeGen(mail.KEY_HISTORY))
+	go mail.PeriodicMailer(MailerControl[mail.KEY_REPORTER], mail.KEY_REPORTER, makeGen(mail.KEY_REPORTER))
+	go mail.PeriodicMailer(MailerControl[mail.KEY_SIMMON], mail.KEY_SIMMON, makeGen(mail.KEY_SIMMON))
+	go mail.WatcherMailer(MailerControl[mail.KEY_STATUS], mail.KEY_STATUS, makeGen(mail.KEY_STATUS))
 
 	router := mux.NewRouter().StrictSlash(true)
 
@@ -155,11 +168,11 @@ func getOutboundIP() net.IP {
 
 // ------------------------------------------
 
-func makeEmailGenerator(key int) mail.EmailGen {
-	keyName := mail.KeyName(key)
+func makeGen(key int) mail.EmailGen {
+	keyName := mail.KeyName[key]
 
-	if key == mail.KEY_HISTORY {
-		// The HISTORY email occurs
+	switch key {
+	case mail.KEY_HISTORY:
 		return func(body *bytes.Buffer) (subject string, err error) {
 			if config.Get().HistoryFileAutoAppend {
 				// Optionally create a new BackupStatus and append to
@@ -194,7 +207,24 @@ func makeEmailGenerator(key int) mail.EmailGen {
 			}
 			return subject, err
 		}
-	} else {
+	case mail.KEY_STATUS:
+		return func(body *bytes.Buffer) (subject string, err error) {
+			subject = keyName + " report"
+			body.Write([]byte("ReportTime <b>" + time.Now().Format(config.TIME_FORMAT) + "</b>\n"))
+			backupStatus, err := status.GetBackupStatus()
+			if err != nil {
+				subject = subject + ": FAILED - " + err.Error()
+			} else {
+				status.SaveStatusToHistory(*backupStatus)
+				c := strconv.Itoa(int(backupStatus.MissingFiles))
+				d := status.ShortenTimeDiff(backupStatus.AcerAge)
+				subject = subject + ": MISSING(" + c + ") AGE(" + d + ")"
+			}
+			return subject, err
+		}
+	default:
+		// case mail.KEY_REPORTER:
+		// case mail.KEY_SIMMON:
 		return func(body *bytes.Buffer) (subject string, err error) {
 			subject = keyName + " report"
 			loggingPageVars := logging.LoggingPageVariables{
@@ -219,4 +249,5 @@ func makeEmailGenerator(key int) mail.EmailGen {
 			return subject, err
 		}
 	}
+	return nil
 }

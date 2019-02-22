@@ -128,6 +128,21 @@ func getSettings(c config.Configuration) []Setting {
 		},
 	})
 	settings = append(settings, Setting{
+		Id: "AcerFileWatchPeriod", Name: "Acer File Period", Type: "number",
+		Value: strconv.Itoa(c.AcerFileWatchPeriod), 
+		Description: "File polling period in seconds",
+		Validator: func(f url.Values, c *config.Configuration, s *Setting) error {
+			s.Value = f.Get(s.Id) // [s.Id] Unconditionally return to the page
+			var err error
+			if c.AcerFileWatchPeriod, err = strconv.Atoi(s.Value); err == nil {
+				if c.AcerFileWatchPeriod < 30 {
+					err = errors.New("out of range (30,)")
+				}
+			}
+			return err
+		},
+	})
+	settings = append(settings, Setting{
 		// For checkboxes, the Value is always "checked" and the Checked field is set
 		// from the form and written to the html input.
 		Id: "EnableAcerFileWatch", Name: "Watch Acer File", Type: "checkbox",

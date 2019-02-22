@@ -35,8 +35,9 @@ type Configuration struct {
 	DocRoot    string // path to root of served documents (may be absolute or relative to wd) [./]
 	AssetsRoot string // path to static documents (may be absolute or relative to wd) [./static]
 
-	EnableAcerFileWatch    bool // when the AcerFilePath changes, add new record to HistoryFile and email status
-	HistoryFileAutoAppend  bool // At history report email time, add new record to HistoryFile
+	EnableAcerFileWatch   bool // when the AcerFilePath changes, add new record to HistoryFile and email status
+	AcerFileWatchPeriod   int  // Polling period in seconds
+	HistoryFileAutoAppend bool // At history report email time, add new record to HistoryFile
 
 	HistoryFile         string // Where the BackupStatus records are appended to.
 	HistoryLogAutoEmail AutoEmailConfig
