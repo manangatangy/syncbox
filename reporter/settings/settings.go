@@ -130,13 +130,26 @@ func getSettings(c config.Configuration) []Setting {
 	settings = append(settings, Setting{
 		// For checkboxes, the Value is always "checked" and the Checked field is set
 		// from the form and written to the html input.
-		Id: "EmailFreshBackupStatus", Name: "Email Fresh Status", Type: "checkbox",
+		Id: "EnableAcerFileWatch", Name: "Watch Acer File", Type: "checkbox",
 		Value:       "checked",
-		Checked:     formatChecked(c.EmailFreshBackupStatus),
+		Checked:     formatChecked(c.EnableAcerFileWatch),
+		Description: "Create and email new history record, on acer file change",
+		Validator: func(f url.Values, c *config.Configuration, s *Setting) error {
+			s.Checked = f.Get(s.Id)
+			c.EnableAcerFileWatch = (s.Checked != "")
+			return nil
+		},
+	})
+	settings = append(settings, Setting{
+		// For checkboxes, the Value is always "checked" and the Checked field is set
+		// from the form and written to the html input.
+		Id: "HistoryFileAutoAppend", Name: "History Auto Append", Type: "checkbox",
+		Value:       "checked",
+		Checked:     formatChecked(c.HistoryFileAutoAppend),
 		Description: "At email report time, add fresh backupStatus to history",
 		Validator: func(f url.Values, c *config.Configuration, s *Setting) error {
 			s.Checked = f.Get(s.Id)
-			c.EmailFreshBackupStatus = (s.Checked != "")
+			c.HistoryFileAutoAppend = (s.Checked != "")
 			return nil
 		},
 	})

@@ -161,7 +161,7 @@ func makeEmailGenerator(key int) mail.EmailGen {
 	if key == mail.KEY_HISTORY {
 		// The HISTORY email occurs
 		return func(body *bytes.Buffer) (subject string, err error) {
-			if config.Get().EmailFreshBackupStatus {
+			if config.Get().HistoryFileAutoAppend {
 				// Optionally create a new BackupStatus and append to
 				// the History, which is then emailed in the report.
 				backupStatus, err := status.GetBackupStatus()

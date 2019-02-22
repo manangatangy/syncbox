@@ -15,7 +15,8 @@
     "AutoEmailPeriod": "secs",
     "AutoEmailNext": "2019-02-21 16:50:27"
   },
-  "EmailFreshBackupStatus": false,
+  "EnableAcerFileWatch": false,
+  "HistoryFileAutoAppend": false,
   "ReporterLogFilePath": "./reporter.log",
   "ReporterLogAutoEmail": {
     "AutoEmailEnable": false,
