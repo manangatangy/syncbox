@@ -16,7 +16,7 @@ Tue 12/02/2019
   "localBytes": 3083578304,
   "localDeleted": 323,
   "localDirectories": 1487,
-  "localFiles": 10399,
+  "localFiles": 99,
   "localSymlinks": 0,
   "localTotalItems": 12209,
   "needBytes": 0,

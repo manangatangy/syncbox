@@ -23,12 +23,6 @@ func HistoryPage(w http.ResponseWriter, r *http.Request) {
 		LocalServer: true,
 	}
 	HistoryFetch(w, &historyPageVariables)
-
-	// temp TODO remove
-	backupStatus, err := GetBackupStatus()
-	if err == nil {
-		SaveStatusToHistory(*backupStatus)
-	}
 }
 
 // Fetches all history records from the history file,
@@ -75,6 +69,7 @@ func ReadStatusHistory() ([]BackupStatus, string) {
 }
 
 func SaveStatusToHistory(record BackupStatus) error {
+	// TODO protect with mutex
 	line, err := json.Marshal(record)
 	if err != nil {
 		log.Printf("ERROR: marshall during SaveStatusToHistory: %s\n", err)

@@ -110,7 +110,7 @@ func GetBackupStatus() (*BackupStatus, error) {
 			} else {
 				backupStatus.AcerTimeStamp = acerTime.Format(REPORT_TIME_FORMAT)
 				diff := serverTime.Sub(*acerTime)
-				backupStatus.AcerAge = diff.String()
+				backupStatus.AcerAge = ShortenTimeDiff(diff.String())
 			}
 		}
 	}
@@ -125,7 +125,7 @@ func ShortenTimeDiff(duration string) string {
 	// Truncate after the 'm'
 	for i, r := range duration {
 		if r == 'm' {
-			return duration[0:i+1]
+			return duration[0 : i+1]
 		}
 	}
 	return duration

@@ -118,17 +118,6 @@ func LoggingPage(w http.ResponseWriter, r *http.Request) {
 			if !success {
 				fields.LogFilePath = "" // Inhibit LoggingFetch from fetching log lines
 			}
-			if success {
-				// TODODODODO - this code is duplicated below !!!!!
-				// If all the settings are valid, then fetch the records from the specified log file.
-				lines, err := readLog(fields.LogFilePath, fields.StartDate, fields.MaxLines)
-				if err == nil {
-					loggingPageVars.LogLines = *lines
-					loggingPageVars.Message = strconv.Itoa(len(*lines)) + " log lines retrieved"
-				} else {
-					loggingPageVars.Message = err.Error()
-				}
-			}
 		}
 	}
 	LoggingFetch(w, loggingPageVars, fields)

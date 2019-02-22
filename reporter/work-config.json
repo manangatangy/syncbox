@@ -15,22 +15,22 @@
   "HistoryLogAutoEmail": {
     "AutoEmailEnable": false,
     "AutoEmailCount": 15,
-    "AutoEmailPeriod": "secs",
-    "AutoEmailNext": "2019-02-22 12:50:48"
+    "AutoEmailPeriod": "mins",
+    "AutoEmailNext": "2019-02-22 15:19:10"
   },
   "ReporterLogFilePath": "./reporter.log",
   "ReporterLogAutoEmail": {
     "AutoEmailEnable": false,
-    "AutoEmailCount": 1,
-    "AutoEmailPeriod": "hours",
-    "AutoEmailNext": "2019-02-21 16:29:26"
+    "AutoEmailCount": 30,
+    "AutoEmailPeriod": "secs",
+    "AutoEmailNext": "2019-02-22 15:32:00"
   },
   "SimmonLogFilePath": "../simmon-sample.log",
   "SimmonLogAutoEmail": {
     "AutoEmailEnable": false,
-    "AutoEmailCount": 2,
-    "AutoEmailPeriod": "days",
-    "AutoEmailNext": "2019-02-21 15:53:00"
+    "AutoEmailCount": 20,
+    "AutoEmailPeriod": "secs",
+    "AutoEmailNext": "2019-02-22 15:31:50"
   },
   "EmailFrom": "syncboxmichele@gmail.com",
   "EmailTo": "david.x.weiss@gmail.com",
