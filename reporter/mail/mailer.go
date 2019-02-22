@@ -45,10 +45,10 @@ const (
 )
 
 var KeyName = map[int]string{
-	KEY_HISTORY:   "HISTORY",
+	KEY_HISTORY:  "HISTORY",
 	KEY_REPORTER: "REPORTER",
 	KEY_SIMMON:   "SIMMON",
-	KEY_STATUS: "STATUS",
+	KEY_STATUS:   "STATUS",
 }
 
 type EmailGen func(body *bytes.Buffer) (subject string, err error)
@@ -94,6 +94,7 @@ func PeriodicMailer(control <-chan ControlMsg, key int, gen EmailGen) {
 			}
 			log.Printf("mailer(%s): wait completed, msg: %s\n", KeyName[key], MsgName[msg])
 			if msg != CONTROL_CONFIG_CHANGE {
+				log.Printf("mailer(%s): mailing...\n", KeyName[key])
 				mail(key, gen) // Time reached; email the report
 			}
 		}
@@ -107,6 +108,7 @@ func WatcherMailer(control <-chan ControlMsg, key int, gen EmailGen) {
 	log.Printf("Wmailer(%s): starting\n", KeyName[key])
 	filePath := config.Get().AcerFilePath
 	currentModTime, err := getModTime(filePath)
+	// fmt.Printf("TEMP ===> mailer(%s): currentModTime %v\n", KeyName[key], currentModTime)
 	if err != nil {
 		// Ignore error; modTime will be empty but still comparable to polled value.
 		log.Printf("ERROR: mailer(%s): getModTime(%s) error: %v\n", KeyName[key], filePath, err)
@@ -115,7 +117,7 @@ func WatcherMailer(control <-chan ControlMsg, key int, gen EmailGen) {
 		c := config.Get()
 		var msg ControlMsg
 		if !c.EnableAcerFileWatch {
-			fmt.Printf("TEMP ===> mailer(%s): waiting indefinitely...\n", KeyName[key])
+			// fmt.Printf("TEMP ===> mailer(%s): waiting indefinitely...\n", KeyName[key])
 			msg = waitIndefinite(control)
 		} else {
 			secs := c.AcerFileWatchPeriod
@@ -124,6 +126,9 @@ func WatcherMailer(control <-chan ControlMsg, key int, gen EmailGen) {
 			}
 			waitDuration := time.Duration(secs) * time.Second
 			msg = waitTimed(control, waitDuration)
+
+			// log.Printf("TEMP ===> mailer(%s): wait completed, msg: %s\n", KeyName[key], MsgName[msg])
+
 			if msg == CONTROL_CONFIG_CHANGE {
 				log.Printf("mailer(%s): config change occurred\n", KeyName[key])
 			} else {
@@ -144,9 +149,11 @@ func WatcherMailer(control <-chan ControlMsg, key int, gen EmailGen) {
 
 func getModTime(filePath string) (time.Time, error) {
 	fi, err := os.Stat(filePath)
-	if err != nil {
+	if err == nil {
+		// fmt.Printf("TEMP ===> getModTime %s %v\n", filePath, fi.ModTime())
 		return fi.ModTime(), nil
 	} else {
+		// fmt.Printf("TEMP ===> getModTime %s %v\n", filePath, err.Error())
 		return time.Time{}, err
 	}
 }

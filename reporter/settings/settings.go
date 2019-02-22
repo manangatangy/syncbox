@@ -129,14 +129,14 @@ func getSettings(c config.Configuration) []Setting {
 	})
 	settings = append(settings, Setting{
 		Id: "AcerFileWatchPeriod", Name: "Acer File Period", Type: "number",
-		Value: strconv.Itoa(c.AcerFileWatchPeriod), 
+		Value:       strconv.Itoa(c.AcerFileWatchPeriod),
 		Description: "File polling period in seconds",
 		Validator: func(f url.Values, c *config.Configuration, s *Setting) error {
 			s.Value = f.Get(s.Id) // [s.Id] Unconditionally return to the page
 			var err error
 			if c.AcerFileWatchPeriod, err = strconv.Atoi(s.Value); err == nil {
-				if c.AcerFileWatchPeriod < 30 {
-					err = errors.New("out of range (30,)")
+				if c.AcerFileWatchPeriod < 10 {
+					err = errors.New("out of range (10,)")
 				}
 			}
 			return err
