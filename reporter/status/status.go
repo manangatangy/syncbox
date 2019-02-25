@@ -2,6 +2,7 @@ package status
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"errors"
 	"io/ioutil"
@@ -9,7 +10,6 @@ import (
 	"net/http"
 	"os"
 	"reporter/config"
-	"strings"
 	"time"
 )
 
@@ -142,7 +142,7 @@ func GetAcerStatus() (*AcerStatus, error) {
 	acerStatus := AcerStatus{
 		FileCount: -1, ByteCount: -1,
 	}
-	var builder strings.Builder
+	var builder bytes.Buffer
 	// Remainder of the input file.
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
