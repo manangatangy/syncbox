@@ -35,9 +35,8 @@ type AcerStatus struct {
 	Title      string
 	DateString string
 	TimeString string
-	// TimeStamp  string
-	FileCount int32
-	ByteCount int64
+	FileCount  int32
+	ByteCount  int64
 }
 
 // Struct fields must be exported/visible otherwise unmarshall cannot see them.
@@ -69,9 +68,8 @@ type SyncthingStatus struct {
 	PullErrors        int
 	Sequence          int
 	State             string
-	StateChanged      string
-	// "2019-02-12T10:47:15.179455+11:00",
-	Version int
+	StateChanged      string // "2019-02-12T10:47:15.179455+11:00",
+	Version           int
 }
 
 // Return a new current BackupStatus, using the current contents of the AcerFile, and a fresh

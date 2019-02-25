@@ -8,8 +8,8 @@
   "SyncFolderId": "w7vhz-txgya",
   "DocRoot": "./",
   "AssetsRoot": "./assets",
-  "EnableAcerFileWatch": true,
-  "AcerFileWatchPeriod": 1000,
+  "EnableAcerFileWatch": false,
+  "AcerFileWatchPeriod": 100,
   "HistoryFileAutoAppend": false,
   "HistoryFile": "./history.json",
   "HistoryLogAutoEmail": {

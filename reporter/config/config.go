@@ -92,6 +92,7 @@ type ControlMsg int
 var MailerControl map[int]chan ControlMsg
 
 func ReloadConfig(key int) {
+	log.Printf("ReloadConfig, %s ==> %s\n", MsgName[CONTROL_CONFIG_CHANGE], KeyName[key])
 	MailerControl[key] <- CONTROL_CONFIG_CHANGE
 }
 

@@ -59,15 +59,6 @@ func getSettings(c config.Configuration) []Setting {
 		Readonly: true,
 	})
 	settings = append(settings, Setting{
-		Id: "AcerFilePath", Name: "Acer File Path", Type: "text",
-		Value: c.AcerFilePath, Description: "Location of file containing AcerStatus",
-		Validator: func(f url.Values, c *config.Configuration, s *Setting) error {
-			s.Value = f.Get(s.Id) // [s.Id] Unconditionally return to the page
-			c.AcerFilePath = s.Value
-			return nil
-		},
-	})
-	settings = append(settings, Setting{
 		Id: "SyncFolderId", Name: "Syncthing Folder Id", Type: "text",
 		Value: c.SyncFolderId, Description: "Identifies folder being monitored (from Syncthing-GUI)",
 		Validator: func(f url.Values, c *config.Configuration, s *Setting) error {
@@ -128,32 +119,58 @@ func getSettings(c config.Configuration) []Setting {
 		},
 	})
 	settings = append(settings, Setting{
-		Id: "AcerFileWatchPeriod", Name: "Acer File Period", Type: "number",
-		Value:       strconv.Itoa(c.AcerFileWatchPeriod),
-		Description: "File polling period in seconds",
-		Validator: func(f url.Values, c *config.Configuration, s *Setting) error {
-			s.Value = f.Get(s.Id) // [s.Id] Unconditionally return to the page
-			var err error
-			if c.AcerFileWatchPeriod, err = strconv.Atoi(s.Value); err == nil {
-				if c.AcerFileWatchPeriod < 10 {
-					err = errors.New("out of range (10,)")
-				}
-			}
-			return err
-		},
-	})
-	settings = append(settings, Setting{
 		// For checkboxes, the Value is always "checked" and the Checked field is set
 		// from the form and written to the html input.
-		Id: "EnableAcerFileWatch", Name: "Watch Acer File", Type: "checkbox",
+		Id: "EnableAcerFileWatch", Name: "Acer File Watch", Type: "checkbox",
 		Value:       "checked",
 		Checked:     formatChecked(c.EnableAcerFileWatch),
 		Description: "Create and email new history record, on acer file change",
 		Validator: func(f url.Values, c *config.Configuration, s *Setting) error {
 			s.Checked = f.Get(s.Id)
-			c.EnableAcerFileWatch = (s.Checked != "")
-			config.ReloadConfig(config.KEY_STATUS)
+			// has value changed ?
+			oldVal := c.EnableAcerFileWatch
+			newVal := s.Checked != ""
+			c.EnableAcerFileWatch = newVal
+			if oldVal != newVal {
+				config.ReloadConfig(config.KEY_STATUS)
+			}
 			return nil
+		},
+	})
+	settings = append(settings, Setting{
+		Id: "AcerFilePath", Name: "Acer File Path", Type: "text",
+		Value: c.AcerFilePath, Description: "Location of file containing AcerStatus",
+		Validator: func(f url.Values, c *config.Configuration, s *Setting) error {
+			s.Value = f.Get(s.Id) // [s.Id] Unconditionally return to the page
+			// has value changed ?
+			oldVal := c.AcerFilePath
+			newVal := s.Value
+			c.AcerFilePath = newVal
+			if oldVal != newVal {
+				config.ReloadConfig(config.KEY_STATUS)
+			}
+			return nil
+		},
+	})
+	settings = append(settings, Setting{
+		Id: "AcerFileWatchPeriod", Name: "Acer File Period", Type: "number",
+		Value:       strconv.Itoa(c.AcerFileWatchPeriod),
+		Description: "File polling period in seconds",
+		Validator: func(f url.Values, c *config.Configuration, s *Setting) error {
+			s.Value = f.Get(s.Id) // [s.Id] Unconditionally return to the page
+			oldVal := c.AcerFileWatchPeriod
+			newVal, err := strconv.Atoi(s.Value)
+			if err == nil {
+				if c.AcerFileWatchPeriod >= 10 {
+					c.AcerFileWatchPeriod = newVal
+					if oldVal != newVal {
+						config.ReloadConfig(config.KEY_STATUS)
+					}
+				} else {
+					err = errors.New("out of range (10,)")
+				}
+			}
+			return err
 		},
 	})
 	settings = append(settings, Setting{
@@ -251,6 +268,7 @@ func makeAutoEmailSetting(shortName string, id string, c config.Configuration, g
 			s.Checked = f.Get(shortName + "LogAutoEmail_Checked")
 			// checkbox has changed from set -> clear
 			reload := (aec.AutoEmailEnable && (s.Checked == ""))
+
 			if !aec.AutoEmailEnable && (s.Checked != "") {
 				// checkbox has changed from clear -> set
 				reload = true
@@ -369,7 +387,6 @@ func SettingsPage(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-
 	t, err := template.ParseFiles("settings/settings.html")
 	if err != nil {
 		log.Print("ERROR: SettingsPage template parsing error: ", err)
