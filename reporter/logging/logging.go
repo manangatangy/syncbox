@@ -12,6 +12,7 @@ import (
 	"reporter/config"
 	"strconv"
 	"strings"
+	"time"
 	"unicode"
 )
 
@@ -63,7 +64,8 @@ func getSettings(logType string, startDate string, maxLines string) []Setting {
 		Id: "StartDate", Name: "Start Date-Time", Type: "text",
 		Value: startDate, Description: "Show records from this date/time on",
 		Validator: func(newValue string, fields *ValidatedFormFields) error {
-			// TODO test against valid
+			// This string can be any prefix, not just a date string.  However if it is a 
+			// datestring, then the date comparison will be performed, else just a string match.
 			fields.StartDate = newValue
 			return nil
 		},
@@ -91,15 +93,8 @@ func LoggingPage(w http.ResponseWriter, r *http.Request) {
 	}
 	fields := ValidatedFormFields{}
 	if r.Method != http.MethodPost {
-		// TODO - determine start date, as say yesterday using format "2019/02/11 11:11:42"
-		// startDate is a string like
-		// 2019-02-14 19:42:14+11:00	written to simmon.log
-		// 2019/02/11 21:34:46			written to reporter.log
-		// 2006-01-02 15:04:00			written to history.json
-		// Due to the difficulty in changing the reporter.log datestring format, we have to support both.
-
-		// Set defaults for form fields
-		loggingPageVars.Settings = getSettings("REPORTER", "2018/02/11 21:34:46", "100")
+		reportTime := time.Now().Format(config.TIME_FORMAT_START_OF_DAY)
+		loggingPageVars.Settings = getSettings("REPORTER", reportTime, "100")
 	} else {
 		r.ParseForm()
 		if r.Form.Get("retrieve") == "yes" {
@@ -194,7 +189,6 @@ func readLog(logFilePath, startDate string, maxLines int) (*[]string, error) {
 // character to space and in the same position in the extract, also
 // to space.
 // 3.4. perform an string comparison
-
 func matches(prefix, line string) bool {
 	s := len(prefix)
 	if s == 0 { // Empty prefix means start from the first line

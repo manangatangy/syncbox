@@ -277,7 +277,6 @@ func makeAutoEmailSetting(shortName string, id string, c config.Configuration, g
 
 func CalculateNextTime(from time.Time, count int, period string) (time.Time, string) {
 	// Calculate next as now plus the specified period
-	// next := time.Now()
 	switch period {
 	case "secs":
 		from = from.Add(time.Second * time.Duration(count))

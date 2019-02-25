@@ -11,6 +11,7 @@ import (
 const (
 	TIME_FORMAT               = "2006-01-02 15:04:05"
 	TIME_FORMAT_START_OF_HOUR = "2006-01-02 15:00:00"
+	TIME_FORMAT_START_OF_DAY  = "2006-01-02 00:00:00"
 )
 
 type AutoEmailConfig struct {
