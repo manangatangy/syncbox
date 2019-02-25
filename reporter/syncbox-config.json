@@ -1,9 +1,9 @@
 {
   "DialTimeout": 10,
   "Port": "8090",
-  "AcerFilePath": "AcerPC-Sync-Status-Report.sample.txt",  
+  "AcerFilePath": "/media/syncdisk/backups/Documents/AcerPC-Sync-Status-Report.txt",  
   "AcerTimeZone": "AEDT",
-  "SyncApiEndpoint": "http://192.168.0.44:8384/rest/db/status",
+  "SyncApiEndpoint": "http://127.0.0.1:8384/rest/db/status",
   "SyncApiKey": "GSwL53QQ96gZWJU5DpDTnqzJTzi2bn4K",
   "SyncFolderId": "zzecm-apamx",
   "DocRoot": "./",
@@ -25,7 +25,7 @@
     "AutoEmailPeriod": "weeks",
     "AutoEmailNext": "2019-05-07 15:45:00"
   },
-  "SimmonLogFilePath": "../simmon-sample.log",
+  "SimmonLogFilePath": "../simmon.log",
   "SimmonLogAutoEmail": {
     "AutoEmailEnable": false,
     "AutoEmailCount": 55,

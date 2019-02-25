@@ -21,7 +21,7 @@ case "$1" in
         --chuid $USER \
         --chdir $WDIR \
         --verbose \
-        -- -config config.json -logfile $LOGFILE 
+        -- -config syncbox-config.json -logfile $LOGFILE 
     ;;
   stop)
     echo -n "Stopping: "$NAME
